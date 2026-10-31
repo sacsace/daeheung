@@ -55,7 +55,8 @@ const mapHeresnowClientError = (
   ) {
     return {
       status: 502,
-      message: 'HeresNow API 키가 올바르지 않거나 연동 권한이 없습니다.',
+      message:
+        'HeresNow API 키 또는 회사 ID가 올바르지 않습니다. 회사 ID는 HeresNow에 표시된 그대로(소문자) 복사한 뒤 [연동 설정 저장] 후 다시 시도하세요.',
       code: 'HERESNOW_UPSTREAM_UNAUTHORIZED',
     };
   }
@@ -245,7 +246,7 @@ export const updateHeresnowSettings = async (req: AuthRequest, res: Response) =>
       enabled: typeof enabled === 'boolean' ? enabled : current.enabled,
       companyId:
         companyId != null && String(companyId).trim()
-          ? String(companyId).trim()
+          ? String(companyId).trim() // mergeHeresnowSettings 에서 소문자 정규화
           : current.companyId || String(company.id),
       externalCompanyId:
         externalCompanyId != null && String(externalCompanyId).trim()

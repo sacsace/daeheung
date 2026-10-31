@@ -472,6 +472,18 @@ const dedupeAttendanceRows = (rows: HeresnowAttendanceRecord[]) => {
   return unique;
 };
 
+/**
+ * HeresNow 회사 ID(CUID)는 대소문자를 구분한다.
+ * 대문자로 저장하면 API가 401 Unauthorized 를 반환한다.
+ */
+export const normalizeHeresnowCompanyId = (value?: string | null): string => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return '';
+  // CUID/유사 ID는 소문자로 통일. 숫자 company.id 는 그대로.
+  if (/^\d+$/.test(trimmed)) return trimmed;
+  return trimmed.toLowerCase();
+};
+
 export const getHeresnowSettings = (company: Company): HeresnowCompanySettings => {
   const settings = (company.settings || {}) as Record<string, unknown>;
   const integrations = (settings.integrations || {}) as Record<string, unknown>;
@@ -479,8 +491,12 @@ export const getHeresnowSettings = (company: Company): HeresnowCompanySettings =
   const apiKey = typeof heresnow.apiKey === 'string' ? heresnow.apiKey.trim() : '';
   return {
     enabled: Boolean(heresnow.enabled),
-    companyId: heresnow.companyId ? String(heresnow.companyId) : String(company.id),
-    externalCompanyId: heresnow.externalCompanyId ? String(heresnow.externalCompanyId) : String(company.id),
+    companyId: heresnow.companyId
+      ? normalizeHeresnowCompanyId(String(heresnow.companyId))
+      : String(company.id),
+    externalCompanyId: heresnow.externalCompanyId
+      ? normalizeHeresnowCompanyId(String(heresnow.externalCompanyId))
+      : String(company.id),
     apiKey: apiKey || undefined,
     unregisteredUsers: Array.isArray(heresnow.unregisteredUsers) ? heresnow.unregisteredUsers : [],
     unregisteredAttendanceRecords: Array.isArray(heresnow.unregisteredAttendanceRecords) ? heresnow.unregisteredAttendanceRecords : [],
@@ -497,10 +513,21 @@ export const mergeHeresnowSettings = (
   const settings = { ...(company.settings || {}) } as Record<string, unknown>;
   const integrations = { ...((settings.integrations || {}) as Record<string, unknown>) };
   const current = getHeresnowSettings(company);
-  integrations.heresnow = {
+  const next: HeresnowCompanySettings = {
     ...current,
     ...patch
   };
+  if (patch.companyId != null) {
+    next.companyId = normalizeHeresnowCompanyId(patch.companyId) || current.companyId;
+  }
+  if (patch.externalCompanyId != null) {
+    next.externalCompanyId =
+      normalizeHeresnowCompanyId(patch.externalCompanyId) || current.externalCompanyId;
+  }
+  if (typeof patch.apiKey === 'string') {
+    next.apiKey = patch.apiKey.trim() || undefined;
+  }
+  integrations.heresnow = next;
   settings.integrations = integrations;
   return settings;
 };
@@ -789,8 +816,9 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
 
   const baseUrl = resolveHeresnowBaseUrl();
   const url = new URL(`${baseUrl}/api/integrations/mvs/attendance`);
-  const companyId = hn.companyId || String(company.id);
-  const externalCompanyId = hn.externalCompanyId || String(company.id);
+  const companyId = normalizeHeresnowCompanyId(hn.companyId) || String(company.id);
+  const externalCompanyId =
+    normalizeHeresnowCompanyId(hn.externalCompanyId) || companyId || String(company.id);
   url.searchParams.set('companyId', companyId);
   url.searchParams.set('externalCompanyId', externalCompanyId);
   // since 파라미터는 HeresNow 쿼리 의미가 월 조회와 다를 수 있어
@@ -1112,8 +1140,9 @@ export async function testHeresnowConnection(company: Company) {
 
   const baseUrl = resolveHeresnowBaseUrl();
   const url = new URL(`${baseUrl}/api/integrations/mvs/attendance`);
-  const companyId = hn.companyId || String(company.id);
-  const externalCompanyId = hn.externalCompanyId || String(company.id);
+  const companyId = normalizeHeresnowCompanyId(hn.companyId) || String(company.id);
+  const externalCompanyId =
+    normalizeHeresnowCompanyId(hn.externalCompanyId) || companyId || String(company.id);
   url.searchParams.set('companyId', companyId);
   url.searchParams.set('externalCompanyId', externalCompanyId);
   url.searchParams.set('limit', '1');

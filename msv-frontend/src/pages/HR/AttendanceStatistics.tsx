@@ -661,6 +661,48 @@ const AttendanceStatistics: React.FC = () => {
     }
   };
 
+  /** HeresNow CUID는 대소문자 구분 — 입력/저장 전 소문자로 맞춤 */
+  const normalizeHeresnowCompanyIdInput = (value: string) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return '';
+    if (/^\d+$/.test(trimmed)) return trimmed;
+    return trimmed.toLowerCase();
+  };
+
+  const persistHeresnowSettingsIfNeeded = async () => {
+    if (!canManageHeresnow) return true;
+    const companyId = normalizeHeresnowCompanyIdInput(heresnowCompanyId);
+    const apiKey = heresnowApiKey.trim();
+    const savedId = normalizeHeresnowCompanyIdInput(
+      String(heresnowStatus?.companyId || heresnowStatus?.externalCompanyId || '')
+    );
+    const needsSave =
+      (companyId && companyId !== savedId) || Boolean(apiKey);
+    if (!needsSave) {
+      if (companyId && companyId !== heresnowCompanyId) setHeresnowCompanyId(companyId);
+      return true;
+    }
+    const payload: { companyId?: string; externalCompanyId?: string; apiKey?: string } = {};
+    if (companyId) {
+      payload.companyId = companyId;
+      payload.externalCompanyId = companyId;
+    }
+    if (apiKey) payload.apiKey = apiKey;
+    const res = await heresnowIntegrationService.updateSettings(payload);
+    if (!res.success) {
+      setHeresnowError(res.message || t('attendanceManagement.heresnowSyncFailed'));
+      return false;
+    }
+    setHeresnowStatus(res.data);
+    setHeresnowCompanyId(
+      normalizeHeresnowCompanyIdInput(
+        String(res.data?.companyId || res.data?.externalCompanyId || companyId || '')
+      )
+    );
+    setHeresnowApiKey('');
+    return true;
+  };
+
   const handleSaveHeresnowSettings = async () => {
     if (!canManageHeresnow) return;
     setHeresnowSettingsLoading(true);
@@ -668,14 +710,18 @@ const AttendanceStatistics: React.FC = () => {
     setHeresnowMessage(null);
     try {
       const payload: { companyId?: string; externalCompanyId?: string; apiKey?: string } = {};
-      const companyId = String(heresnowCompanyId || '').trim();
+      const companyId = normalizeHeresnowCompanyIdInput(heresnowCompanyId);
       if (companyId) payload.companyId = companyId;
       if (companyId) payload.externalCompanyId = companyId;
       if (heresnowApiKey.trim()) payload.apiKey = heresnowApiKey.trim();
       const res = await heresnowIntegrationService.updateSettings(payload);
       if (res.success) {
         setHeresnowStatus(res.data);
-        setHeresnowCompanyId(String(res.data?.companyId || res.data?.externalCompanyId || companyId || ''));
+        setHeresnowCompanyId(
+          normalizeHeresnowCompanyIdInput(
+            String(res.data?.companyId || res.data?.externalCompanyId || companyId || '')
+          )
+        );
         setHeresnowApiKey('');
         setHeresnowMessage(t('attendanceManagement.heresnowSettingsSaved'));
       } else {
@@ -693,10 +739,15 @@ const AttendanceStatistics: React.FC = () => {
     setHeresnowError(null);
     setHeresnowMessage(null);
     try {
+      const saved = await persistHeresnowSettingsIfNeeded();
+      if (!saved) return;
       const res = await heresnowIntegrationService.testConnection();
       if (res.success) {
+        const count = Number(res?.data?.previewCount ?? 0);
         setHeresnowMessage(
-          res.message || t('attendanceManagement.heresnowTestSuccess', { count: res?.data?.previewCount ?? 0 })
+          count > 0
+            ? res.message || t('attendanceManagement.heresnowTestSuccess', { count })
+            : t('attendanceManagement.heresnowTestEmpty')
         );
       } else {
         setHeresnowError(res.message || t('attendanceManagement.heresnowTestFailed'));
@@ -713,6 +764,8 @@ const AttendanceStatistics: React.FC = () => {
     setHeresnowError(null);
     setHeresnowMessage(null);
     try {
+      const saved = await persistHeresnowSettingsIfNeeded();
+      if (!saved) return;
       const syncPayload: { since?: string } = {};
       if (/^\d{4}-\d{2}$/.test(heresnowSyncMonth)) {
         syncPayload.since = `${heresnowSyncMonth}-01`;
@@ -1067,6 +1120,14 @@ const AttendanceStatistics: React.FC = () => {
                   label={t('attendanceManagement.heresnowCompanyId')}
                   value={normalizedCompanyId}
                   onChange={(e) => setHeresnowCompanyId(e.target.value)}
+                  onBlur={() => {
+                    const normalized = normalizeHeresnowCompanyIdInput(heresnowCompanyId);
+                    if (normalized && normalized !== heresnowCompanyId) {
+                      setHeresnowCompanyId(normalized);
+                    }
+                  }}
+                  helperText={t('attendanceManagement.heresnowCompanyIdHint')}
+                  FormHelperTextProps={{ sx: { mx: 0, mt: 0.5 } }}
                   sx={{ minWidth: 0 }}
                 />
                 <TextField

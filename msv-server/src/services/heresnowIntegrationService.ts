@@ -864,8 +864,6 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
 
       if (!response.ok) {
         debug.fetch[mode.key].errors += 1;
-        // 일부 환경에서 status 쿼리를 허용하지 않을 수 있으므로 모드 단위 실패는 건너뛴다.
-        if (i === 0) break;
         const message =
           typeof payload === 'object' && payload && !Array.isArray(payload)
             ? (typeof payload.message === 'string'
@@ -874,6 +872,12 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
                 ? payload.error
                 : `HeresNow API ${response.status}`)
             : `HeresNow API ${response.status}`;
+        // 인증 실패는 모드를 바꿔도 동일 — 즉시 중단 (HTTP 401을 MVS에 재전달하지 않음)
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(message || `HeresNow API ${response.status}`);
+        }
+        // 일부 환경에서 status 쿼리를 허용하지 않을 수 있으므로 모드 단위 실패는 건너뛴다.
+        if (i === 0) break;
         throw new Error(message);
       }
       successfulModeCount += i === 0 ? 1 : 0;
@@ -949,7 +953,9 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
     lastSeenAt: string;
   }>();
 
-  if (sinceYmd && /^\d{4}-\d{2}-\d{2}$/.test(sinceYmd)) {
+  // HeresNow 에 해당 월 데이터가 0건이면 기존 MVS 근태를 지우지 않음
+  // (빈 응답으로 월 전체를 날리면 UI가 비고, 연동 오류처럼 보임)
+  if (sinceYmd && /^\d{4}-\d{2}-\d{2}$/.test(sinceYmd) && uniqueRows.length > 0) {
     const nextMonthStart = monthEndYmd as string;
 
     await Attendance.destroy({

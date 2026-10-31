@@ -628,12 +628,23 @@ api.interceptors.response.use(
           }
         }
 
-        // 403 (유효하지 않은 토큰) 또는 401 (인증 필요) 오류 시
-        if (error.response?.data?.message === '유효하지 않은 토큰입니다.' || 
-            error.response?.status === 401) {
-          // 로그아웃 처리
+        // MVS 세션 무효만 강제 로그아웃.
+        // HeresNow 등 외부 연동 실패가 HTTP 401 로 오면 세션과 무관하므로 로그아웃하지 않음.
+        const errPayload = error.response?.data;
+        const errMessage = String(errPayload?.message || '');
+        const errCode = String(errPayload?.code || '');
+        const isMvsSessionInvalid =
+          errCode === SESSION_SUPERSEDED_CODE ||
+          errMessage === '유효하지 않은 토큰입니다.' ||
+          errMessage === '액세스 토큰이 필요합니다.' ||
+          errMessage === '인증이 필요합니다.' ||
+          errMessage === '유효하지 않은 사용자입니다.' ||
+          (error.response?.status === 401 &&
+            !errCode.startsWith('HERESNOW_') &&
+            !String(error.config?.url || '').includes('/heresnow/'));
+
+        if (isMvsSessionInvalid) {
           authStorage.removeItem('mvs-auth-storage');
-          // 로그인 페이지로 리다이렉트
           if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
             window.location.href = '/login';
           }

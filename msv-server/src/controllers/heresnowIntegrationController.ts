@@ -18,6 +18,57 @@ const loadCompanyForUser = async (req: AuthRequest) => {
   return Company.findOne({ where: { id: companyId, tenant_id: tenantId } });
 };
 
+/**
+ * HeresNow 업스트림 오류 → MVS 클라이언트 응답.
+ * 업스트림 401/Unauthorized 를 HTTP 401 로 넘기면 axios가 MVS 세션 만료로 오인해 로그아웃하므로
+ * 연동 실패는 4xx(권한·설정) / 502(업스트림) 만 사용한다.
+ */
+const mapHeresnowClientError = (
+  error: any,
+  fallbackMessage: string
+): { status: number; message: string; code?: string } => {
+  const code = String(error?.message || '');
+  const lower = code.toLowerCase();
+
+  if (code === 'INTEGRATION_DISABLED') {
+    return { status: 403, message: 'HeresNow 연동이 비활성화되어 있습니다.', code };
+  }
+  if (code === 'API_KEY_NOT_CONFIGURED') {
+    return {
+      status: 503,
+      message: '회사별 HeresNow 연동 API 키가 설정되지 않았습니다.',
+      code,
+    };
+  }
+  if (code === '연동된 회사를 찾을 수 없습니다.' || code === 'COMPANY_NOT_FOUND') {
+    return {
+      status: 404,
+      message: '외부 회사 ID 매핑을 찾을 수 없습니다. HeresNow 회사 연동 설정을 확인하세요.',
+      code: 'COMPANY_NOT_FOUND',
+    };
+  }
+  if (
+    lower.includes('unauthorized') ||
+    /\b401\b/.test(code) ||
+    lower.includes('invalid api key') ||
+    lower.includes('invalid token')
+  ) {
+    return {
+      status: 502,
+      message: 'HeresNow API 키가 올바르지 않거나 연동 권한이 없습니다.',
+      code: 'HERESNOW_UPSTREAM_UNAUTHORIZED',
+    };
+  }
+  if (lower.includes('not found') || /\b404\b/.test(code)) {
+    return {
+      status: 502,
+      message: 'HeresNow에서 해당 회사/기간 데이터를 찾지 못했습니다. 연동 설정을 확인하세요.',
+      code: 'HERESNOW_UPSTREAM_NOT_FOUND',
+    };
+  }
+  return { status: 500, message: fallbackMessage, code: code || undefined };
+};
+
 export const dispatchHeresnowAttendance = async (req: AuthRequest, res: Response) => {
   try {
     if (!verifyHeresnowDispatchAuth(req.headers as Record<string, unknown>)) {
@@ -104,9 +155,11 @@ export const syncHeresnowAttendance = async (req: AuthRequest, res: Response) =>
       debug: (result as any).debug
     });
     const message =
-      result.total > 0 && result.applied === 0
-        ? `HeresNow 데이터 ${result.total}건을 찾았지만 적용 0건입니다. 사용자 매핑(이메일/사번) 또는 데이터 형식을 확인해주세요.`
-        : `HeresNow에서 ${result.applied}건의 근태를 반영했습니다.`;
+      result.total === 0
+        ? '선택한 기간에 HeresNow 동기화 데이터가 없습니다.'
+        : result.applied === 0
+          ? `HeresNow 데이터 ${result.total}건을 찾았지만 적용 0건입니다. 사용자 매핑(이메일/사번) 또는 데이터 형식을 확인해주세요.`
+          : `HeresNow에서 ${result.applied}건의 근태를 반영했습니다.`;
 
     return res.json({
       success: true,
@@ -114,22 +167,12 @@ export const syncHeresnowAttendance = async (req: AuthRequest, res: Response) =>
       data: result
     });
   } catch (error: any) {
-    const code = String(error?.message || '');
-    const status = code === 'INTEGRATION_DISABLED'
-      ? 403
-      : code === 'API_KEY_NOT_CONFIGURED'
-        ? 503
-        : 500;
-
-    return res.status(status).json({
+    const mapped = mapHeresnowClientError(error, 'HeresNow 동기화 중 오류가 발생했습니다.');
+    return res.status(mapped.status).json({
       success: false,
-      message:
-        code === 'INTEGRATION_DISABLED'
-          ? 'HeresNow 연동이 비활성화되어 있습니다.'
-          : code === 'API_KEY_NOT_CONFIGURED'
-            ? '회사별 HeresNow 연동 API 키가 설정되지 않았습니다.'
-            : 'HeresNow 동기화 중 오류가 발생했습니다.',
-      error: process.env.NODE_ENV === 'development' ? code : undefined
+      message: mapped.message,
+      code: mapped.code,
+      error: process.env.NODE_ENV === 'development' ? String(error?.message || '') : undefined
     });
   }
 };
@@ -150,22 +193,12 @@ export const previewHeresnowAttendance = async (req: AuthRequest, res: Response)
       data: result
     });
   } catch (error: any) {
-    const code = String(error?.message || '');
-    const status = code === 'INTEGRATION_DISABLED'
-      ? 403
-      : code === 'API_KEY_NOT_CONFIGURED'
-        ? 503
-        : 500;
-
-    return res.status(status).json({
+    const mapped = mapHeresnowClientError(error, 'HeresNow 미리보기 조회 중 오류가 발생했습니다.');
+    return res.status(mapped.status).json({
       success: false,
-      message:
-        code === 'INTEGRATION_DISABLED'
-          ? 'HeresNow 연동이 비활성화되어 있습니다.'
-          : code === 'API_KEY_NOT_CONFIGURED'
-            ? '회사별 HeresNow 연동 API 키가 설정되지 않았습니다.'
-            : 'HeresNow 미리보기 조회 중 오류가 발생했습니다.',
-      error: process.env.NODE_ENV === 'development' ? code : undefined
+      message: mapped.message,
+      code: mapped.code,
+      error: process.env.NODE_ENV === 'development' ? String(error?.message || '') : undefined
     });
   }
 };
@@ -184,30 +217,13 @@ export const testHeresnowAttendanceConnection = async (req: AuthRequest, res: Re
       data: result
     });
   } catch (error: any) {
-    const code = String(error?.message || '');
-    const status = code === 'INTEGRATION_DISABLED'
-      ? 403
-      : code === 'API_KEY_NOT_CONFIGURED'
-        ? 503
-        : code === '연동된 회사를 찾을 수 없습니다.'
-          ? 404
-          : code.includes('Unauthorized') || code.includes('401')
-            ? 401
-            : 500;
-
-    return res.status(status).json({
+    // HeresNow 업스트림 401을 MVS 세션 401로 내려주면 프론트가 강제 로그아웃함 — 절대 401 사용 금지
+    const mapped = mapHeresnowClientError(error, 'HeresNow 연동 테스트 중 오류가 발생했습니다.');
+    return res.status(mapped.status).json({
       success: false,
-      message:
-        code === 'INTEGRATION_DISABLED'
-          ? 'HeresNow 연동이 비활성화되어 있습니다.'
-          : code === 'API_KEY_NOT_CONFIGURED'
-            ? '회사별 HeresNow 연동 API 키가 설정되지 않았습니다.'
-            : code === '연동된 회사를 찾을 수 없습니다.'
-              ? '외부 회사 ID 매핑을 찾을 수 없습니다. HeresNow 회사 연동 설정을 확인하세요.'
-              : code.includes('Unauthorized') || code.includes('401')
-                ? 'HeresNow API 키가 올바르지 않습니다.'
-                : 'HeresNow 연동 테스트 중 오류가 발생했습니다.',
-      error: process.env.NODE_ENV === 'development' ? code : undefined
+      message: mapped.message,
+      code: mapped.code,
+      error: process.env.NODE_ENV === 'development' ? String(error?.message || '') : undefined
     });
   }
 };

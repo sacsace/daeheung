@@ -842,6 +842,8 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
   };
 
   let successfulModeCount = 0;
+  let authFailureCount = 0;
+  let notFoundCount = 0;
   for (const mode of queryModes) {
     let cursor: string | null = null;
     for (let i = 0; i < 50; i += 1) {
@@ -872,9 +874,17 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
                 ? payload.error
                 : `HeresNow API ${response.status}`)
             : `HeresNow API ${response.status}`;
-        // 인증 실패는 모드를 바꿔도 동일 — 즉시 중단 (HTTP 401을 MVS에 재전달하지 않음)
+
+        // 404/204: 해당 조회 모드에 데이터 없음 → 다음 모드 시도
+        if (response.status === 404 || response.status === 204) {
+          notFoundCount += 1;
+          break;
+        }
+        // 401/403: 모드마다 다를 수 있어 즉시 중단하지 않고 다음 모드 시도
+        // (월 데이터 없음/필터 미지원을 401로 주는 경우도 있어 동기화는 아래 empty 로 처리)
         if (response.status === 401 || response.status === 403) {
-          throw new Error(message || `HeresNow API ${response.status}`);
+          authFailureCount += 1;
+          break;
         }
         // 일부 환경에서 status 쿼리를 허용하지 않을 수 있으므로 모드 단위 실패는 건너뛴다.
         if (i === 0) break;
@@ -916,6 +926,42 @@ export async function pullHeresnowAttendance(company: Company, options?: { since
     }
   }
   if (successfulModeCount === 0) {
+    // 월 지정 동기화: 원격이 비었거나 기간/필터 미지원(401·404)이어도 "데이터 없음"으로 성공 처리
+    if (sinceYmd || notFoundCount > 0) {
+      const emptyDebug = {
+        ...debug,
+        remoteEmpty: true,
+        authFailureCount,
+        notFoundCount
+      };
+      if (options?.dryRun) {
+        return {
+          applied: 0,
+          total: 0,
+          errors: [],
+          unregisteredUsers: [],
+          debug: emptyDebug
+        };
+      }
+      await company.update({
+        settings: mergeHeresnowSettings(company, {
+          lastSyncAt: new Date().toISOString(),
+          lastSyncCount: 0,
+          lastSyncError: null
+        })
+      });
+      return {
+        applied: 0,
+        total: 0,
+        errors: [],
+        unregisteredUsers: [],
+        unregisteredAttendanceRecords: [],
+        debug: emptyDebug
+      };
+    }
+    if (authFailureCount > 0) {
+      throw new Error('Unauthorized');
+    }
     throw new Error('HeresNow API 응답을 확인할 수 없습니다. status 파라미터/권한 설정을 확인해주세요.');
   }
 
@@ -1085,6 +1131,17 @@ export async function testHeresnowConnection(company: Company) {
     count?: number;
   };
 
+  // 데이터 없음(404/204)은 연동 자체는 성공 — 미리보기 0건
+  if (response.status === 404 || response.status === 204) {
+    return {
+      ok: true,
+      companyId: hn.companyId || String(company.id),
+      externalCompanyId: hn.externalCompanyId || String(company.id),
+      previewCount: 0,
+      empty: true
+    };
+  }
+
   if (!response.ok) {
     const message =
       typeof payload === 'object' && payload
@@ -1097,11 +1154,12 @@ export async function testHeresnowConnection(company: Company) {
     throw new Error(message);
   }
 
+  const rows = extractAttendanceRowsFromPayload(payload);
   return {
     ok: true,
     companyId: hn.companyId || String(company.id),
     externalCompanyId: hn.externalCompanyId || String(company.id),
-    previewCount: typeof payload.count === 'number' ? payload.count : 0
+    previewCount: typeof payload.count === 'number' ? payload.count : rows.length
   };
 }
 

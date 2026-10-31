@@ -54,25 +54,29 @@ export const officeLocationService = {
 };
 
 // 근태 관�?API ?�비??
+const heresnowRequestConfig = {
+  headers: { 'x-skip-error-popup': 'true' },
+};
+
 export const heresnowIntegrationService = {
   getStatus: async () => {
-    const response = await api.get('/hr/attendances/heresnow/status');
+    const response = await api.get('/hr/attendances/heresnow/status', heresnowRequestConfig);
     return response.data;
   },
   sync: async (payload?: { since?: string }) => {
-    const response = await api.post('/hr/attendances/heresnow/sync', payload || {});
+    const response = await api.post('/hr/attendances/heresnow/sync', payload || {}, heresnowRequestConfig);
     return response.data;
   },
   preview: async (payload?: { since?: string }) => {
-    const response = await api.post('/hr/attendances/heresnow/preview', payload || {});
+    const response = await api.post('/hr/attendances/heresnow/preview', payload || {}, heresnowRequestConfig);
     return response.data;
   },
   testConnection: async () => {
-    const response = await api.post('/hr/attendances/heresnow/test', {});
+    const response = await api.post('/hr/attendances/heresnow/test', {}, heresnowRequestConfig);
     return response.data;
   },
   updateSettings: async (payload: { enabled?: boolean; companyId?: string; externalCompanyId?: string; apiKey?: string }) => {
-    const response = await api.put('/hr/attendances/heresnow/settings', payload);
+    const response = await api.put('/hr/attendances/heresnow/settings', payload, heresnowRequestConfig);
     return response.data;
   }
 };

@@ -554,22 +554,40 @@ const calcTdsLineAmounts = (item: {
   return { base, tdsAmt, interest, payable, lineTotal: floorMoney(tdsAmt + interest) };
 };
 
-const sumTdsBaseByDeducteeType = (
+const isOtherTdsDeductee = (item: { deducteeType?: string }) =>
+  String(item.deducteeType || '').toLowerCase() !== 'company';
+
+/** Company는 Amount × Rate. Other Than Company Deductee는 입력한 TDS. */
+const effectiveTdsLineAmount = (item: {
+  amount?: number;
+  unitPrice?: number;
+  qty?: number;
+  tdsRate?: number;
+  tdsInterest?: number;
+  tdsAmount?: number;
+  deducteeType?: string;
+}) => {
+  if (isOtherTdsDeductee(item)) return floorMoney(Number(item.tdsAmount || 0));
+  return calcTdsLineAmounts(item).tdsAmt;
+};
+
+const sumTdsAmountByDeducteeType = (
   items: Array<{
     amount?: number;
     unitPrice?: number;
     qty?: number;
     tdsRate?: number;
     tdsInterest?: number;
+    tdsAmount?: number;
     deducteeType?: string;
   }> | undefined,
   type: 'company' | 'other'
 ) =>
   floorMoney(
     (items || []).reduce((sum, item) => {
-      const isCompany = String(item.deducteeType || '').toLowerCase() === 'company';
+      const isCompany = !isOtherTdsDeductee(item);
       if (type === 'company' ? !isCompany : isCompany) return sum;
-      return sum + calcTdsLineAmounts(item).base;
+      return sum + effectiveTdsLineAmount(item);
     }, 0)
   );
 
@@ -2311,7 +2329,7 @@ const calcExpenseTax = (
     for (const item of rows) {
       const calc = calcTdsLineAmounts(item);
       gross += calc.base;
-      tdsSum += Number(item.tdsAmount ?? calc.tdsAmt);
+      tdsSum += effectiveTdsLineAmount(item);
       interestSum += calc.interest;
     }
     gross = floorMoney(gross);
@@ -2330,10 +2348,10 @@ const calcExpenseTax = (
       sgstAmount: 0,
       tdsAmount: tdsSum,
       tdsInterestAmount: interestSum,
-      tdsOtherDeducteeSum: sumTdsBaseByDeducteeType(rows, 'other'),
-      tdsCompanyDeducteeSum: sumTdsBaseByDeducteeType(rows, 'company'),
+      tdsOtherDeducteeSum: sumTdsAmountByDeducteeType(rows, 'other'),
+      tdsCompanyDeducteeSum: sumTdsAmountByDeducteeType(rows, 'company'),
       discountAmount: 0,
-      grandTotal: floorMoney(gross - tdsSum),
+      grandTotal: tdsSum,
     };
   }
 
@@ -2922,10 +2940,7 @@ const ExpenseApproval: React.FC = () => {
   const tdsAmount = useMemo(() => {
     if (voucherData.formType === 'tds') {
       return floorMoney(
-        lineItems.reduce((sum, item) => {
-          const calc = calcTdsLineAmounts(item);
-          return sum + Number(item.tdsAmount ?? calc.tdsAmt);
-        }, 0)
+        lineItems.reduce((sum, item) => sum + effectiveTdsLineAmount(item), 0)
       );
     }
     // 일반 전표: TDS 적용 시 합계(A) 기준으로 계산 (GST 세율 유무와 무관)
@@ -2936,17 +2951,17 @@ const ExpenseApproval: React.FC = () => {
   }, [lineItems, subtotalAmount, voucherData]);
   const tdsOtherDeducteeSum = useMemo(
     () =>
-      voucherData.formType === 'tds' ? sumTdsBaseByDeducteeType(lineItems, 'other') : 0,
+      voucherData.formType === 'tds' ? sumTdsAmountByDeducteeType(lineItems, 'other') : 0,
     [lineItems, voucherData.formType]
   );
   const tdsCompanyDeducteeSum = useMemo(
     () =>
-      voucherData.formType === 'tds' ? sumTdsBaseByDeducteeType(lineItems, 'company') : 0,
+      voucherData.formType === 'tds' ? sumTdsAmountByDeducteeType(lineItems, 'company') : 0,
     [lineItems, voucherData.formType]
   );
   const totalAmount = useMemo(() => {
     if (voucherData.formType === 'tds') {
-      return floorMoney(subtotalAmount - tdsAmount);
+      return tdsAmount;
     }
     if (voucherData.formType === 'gst') {
       return calcGstFinalPayable(
@@ -3213,6 +3228,7 @@ const ExpenseApproval: React.FC = () => {
             ...(voucherData.formType === 'tds'
               ? (() => {
                   const calc = calcTdsLineAmounts(item);
+                  const tdsAmt = effectiveTdsLineAmount(item);
                   return {
                     amount: calc.base,
                     unitPrice: calc.base,
@@ -3223,8 +3239,8 @@ const ExpenseApproval: React.FC = () => {
                     deducteeType: item.deducteeType === 'company' ? 'company' : 'other',
                     tdsSection: String(item.tdsSection || ''),
                     tdsCode: String(item.tdsCode || ''),
-                    tdsAmount: calc.tdsAmt,
-                    total: calc.payable,
+                    tdsAmount: tdsAmt,
+                    total: tdsAmt,
                   };
                 })()
               : {}),
@@ -4765,11 +4781,21 @@ const ExpenseApproval: React.FC = () => {
           if (field === 'tdsInterest') {
             nextItem.tdsInterest = floorMoney(Number(value || 0));
           }
+          if (field === 'tdsAmount') {
+            nextItem.tdsAmount = floorMoney(Number(value || 0));
+          }
           const calc = calcTdsLineAmounts(nextItem);
           nextItem.amount = calc.base;
           nextItem.unitPrice = calc.base;
-          nextItem.tdsAmount = calc.tdsAmt;
-          nextItem.total = calc.payable;
+          const manualTds = isOtherTdsDeductee(nextItem);
+          if (manualTds && field === 'deducteeType') {
+            nextItem.tdsAmount = floorMoney(Number(item.tdsAmount ?? calc.tdsAmt));
+          } else if (!manualTds) {
+            nextItem.tdsAmount = calc.tdsAmt;
+          } else if (field !== 'tdsAmount') {
+            nextItem.tdsAmount = floorMoney(Number(item.tdsAmount || 0));
+          }
+          nextItem.total = floorMoney(Number(nextItem.tdsAmount || 0));
           return nextItem;
         }
         if (field === 'qty') {
@@ -7959,7 +7985,28 @@ const ExpenseApproval: React.FC = () => {
                                 />
                               </TableCell>
                               <TableCell align="right" sx={{ ...lineItemCellSx, fontVariantNumeric: 'tabular-nums' }}>
-                                {formatSignedAmount(calc.tdsAmt)}
+                                {isOtherTdsDeductee(item) ? (
+                                  <TextField
+                                    type="number"
+                                    size="small"
+                                    value={item.tdsAmount ?? 0}
+                                    onChange={(e) =>
+                                      handleUpdateLineItem(
+                                        item.id,
+                                        'tdsAmount',
+                                        Number(e.target.value || 0)
+                                      )
+                                    }
+                                    inputProps={{ step: 1 }}
+                                    sx={{
+                                      ...lineItemFieldSx,
+                                      minWidth: 88,
+                                      '& input': { textAlign: 'right', px: 0.75 },
+                                    }}
+                                  />
+                                ) : (
+                                  formatSignedAmount(calc.tdsAmt)
+                                )}
                               </TableCell>
                               <TableCell sx={lineItemCellSx}>
                                 <IconButton
@@ -10028,7 +10075,7 @@ const ExpenseApproval: React.FC = () => {
                               <TableCell>{item.tdsSection || '-'}</TableCell>
                               <TableCell>{item.tdsCode || '-'}</TableCell>
                               <TableCell align="right" sx={expenseAmountCellSx}>
-                                {formatSignedAmount(Number(item.tdsAmount ?? calc.tdsAmt))}
+                                {formatSignedAmount(effectiveTdsLineAmount(item))}
                               </TableCell>
                             </TableRow>
                           );

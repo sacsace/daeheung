@@ -154,12 +154,16 @@ async function capturePayslipCanvas(
   container.style.background = '#FFFFFF';
   document.body.appendChild(container);
 
+  const safeCompanyInfo = companyInfo
+    ? { ...companyInfo, logo: await inlineImageAsDataUrl(companyInfo.logo) }
+    : companyInfo;
+
   const root: Root = createRoot(container);
   root.render(
     renderPayslipTree(
       row,
       labels,
-      companyInfo,
+      safeCompanyInfo,
       rootId,
       options?.headerLayout || 'standard',
       options?.companyId ?? null
@@ -174,6 +178,22 @@ async function capturePayslipCanvas(
       });
     });
   });
+
+  // html2canvas는 문서의 외부 CSS(Google Fonts 등)를 fetch 한다.
+  // CORS 실패 시 메일 API 호출 전에 "Failed to fetch"로 전체가 끊긴다.
+  const externalSheets = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"]')
+  ).filter((node): node is HTMLLinkElement => {
+    if (!(node instanceof HTMLLinkElement)) return false;
+    const href = node.href || '';
+    return Boolean(href) && !href.startsWith(window.location.origin);
+  });
+  const parked = externalSheets.map((el) => ({
+    el,
+    parent: el.parentNode,
+    next: el.nextSibling,
+  }));
+  parked.forEach(({ el }) => el.parentNode?.removeChild(el));
 
   try {
     const [{ default: html2canvas }] = await loadPdfLibs();
@@ -191,13 +211,44 @@ async function capturePayslipCanvas(
       scrollX: 0,
       scrollY: 0,
       letterRendering: true,
+      imageTimeout: 4000,
       onclone: (clonedDoc: Document) => {
         injectPayslipCaptureCss(clonedDoc, rootId);
+        clonedDoc.querySelectorAll('img').forEach((img) => {
+          const src = img.getAttribute('src') || '';
+          if (src && !src.startsWith('data:') && !src.startsWith('blob:')) {
+            img.removeAttribute('src');
+          }
+        });
       },
     });
   } finally {
+    parked.forEach(({ el, parent, next }) => {
+      if (!parent) return;
+      parent.insertBefore(el, next);
+    });
     root.unmount();
     document.body.removeChild(container);
+  }
+}
+
+/** 로고를 data URL로 넣는다. 실패해도 예외를 던지지 않는다. */
+async function inlineImageAsDataUrl(src?: string | null): Promise<string> {
+  const raw = String(src || '').trim();
+  if (!raw || raw.startsWith('data:')) return raw;
+  try {
+    const absolute = raw.startsWith('/') ? `${window.location.origin}${raw}` : raw;
+    const res = await fetch(absolute);
+    if (!res.ok) return '';
+    const blob = await res.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return '';
   }
 }
 

@@ -950,10 +950,15 @@ const PayslipSendSystem: React.FC = () => {
         if (!cancelSendRef.current) {
           fail += 1;
           if (!firstError) {
-            const timedOut = e?.code === 'ECONNABORTED' || /timeout/i.test(String(e?.message || ''));
+            const raw = String(e?.response?.data?.message || e?.message || '');
+            const timedOut = e?.code === 'ECONNABORTED' || /timeout/i.test(raw);
+            const noResponse =
+              !e?.response && /failed to fetch|network error|load failed/i.test(raw);
             firstError = timedOut
               ? t(`${p}.sendTimeout`)
-              : String(e?.response?.data?.message || e?.message || '').trim();
+              : noResponse
+                ? t(`${p}.sendNetwork`)
+                : raw.trim();
           }
         }
       } finally {

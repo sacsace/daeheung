@@ -1751,6 +1751,8 @@ export default {
         formulaSample: '수식',
         sendDone: '발송 완료: 성공 {{ok}}건 / 실패 {{fail}}건',
         sendTimeout: '첨부 메일 발송 시간이 길어 요청이 끊겼습니다. 다시 시도해 주세요.',
+        sendNetwork:
+          '서버에 요청이 전달되지 않았습니다. 배포 재시작 중이거나 연결이 끊긴 상태입니다. 잠시 후 다시 시도해 주세요.',
         sendSaved: ' (MVS 사용자 명세서 저장 {{saved}}건)',
         issues: {
           missingName: '성명 없음',

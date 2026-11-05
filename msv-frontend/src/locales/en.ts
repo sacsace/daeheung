@@ -1633,6 +1633,8 @@ export default {
         formulaSample: 'Formula',
         sendDone: 'Send complete: {{ok}} succeeded / {{fail}} failed',
         sendTimeout: 'The payslip email took too long and the request was aborted. Please try again.',
+        sendNetwork:
+          'The request never reached the server. A deploy may be restarting, or the connection dropped. Please try again shortly.',
         sendSaved: ' ({{saved}} saved to MVS My Payslips)',
         issues: {
           missingName: 'Missing name',

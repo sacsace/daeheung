@@ -845,6 +845,30 @@ const PayslipSendSystem: React.FC = () => {
     [validRows, selected]
   );
   const selectedCount = selected.size;
+  const allRowIds = useMemo(() => rows.map((row) => row.id), [rows]);
+  const validRowIds = useMemo(() => validRows.map((row) => row.id), [validRows]);
+  const allRowsSelected = allRowIds.length > 0 && allRowIds.every((id) => selected.has(id));
+  const someRowsSelected = selectedCount > 0 && !allRowsSelected;
+  const allValidSelected =
+    validRowIds.length > 0 &&
+    validRowIds.every((id) => selected.has(id)) &&
+    selected.size === validRowIds.length;
+
+  const toggleAllRows = () => {
+    setSelected(allRowsSelected ? new Set() : new Set(allRowIds));
+  };
+  const toggleValidRows = () => {
+    setSelected(allValidSelected ? new Set() : new Set(validRowIds));
+  };
+  const invertSelection = () => {
+    setSelected((prev) => {
+      const next = new Set<number>();
+      rows.forEach((row) => {
+        if (!prev.has(row.id)) next.add(row.id);
+      });
+      return next;
+    });
+  };
 
   const removeSelectedRows = () => {
     if (!selectedCount || sending) return;
@@ -1203,19 +1227,28 @@ const PayslipSendSystem: React.FC = () => {
                   size="small"
                   variant="outlined"
                   disabled={sending || !rows.length}
-                  onClick={() => setSelected(new Set(rows.map((row) => row.id)))}
+                  onClick={toggleAllRows}
                   sx={mvsBodyOutlinedBtnSx}
                 >
-                  {t(`${p}.selectAll`)}
+                  {allRowsSelected ? t(`${p}.clearAll`) : t(`${p}.selectAll`)}
                 </Button>
                 <Button
                   size="small"
                   variant="outlined"
                   disabled={sending || !validRows.length}
-                  onClick={() => setSelected(new Set(validRows.map((row) => row.id)))}
+                  onClick={toggleValidRows}
                   sx={mvsBodyOutlinedBtnSx}
                 >
-                  {t(`${p}.selectAllValid`)}
+                  {allValidSelected ? t(`${p}.clearValid`) : t(`${p}.selectAllValid`)}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={sending || !rows.length}
+                  onClick={invertSelection}
+                  sx={mvsBodyOutlinedBtnSx}
+                >
+                  {t(`${p}.invertSelection`)}
                 </Button>
                 <Button
                   size="small"
@@ -1272,7 +1305,16 @@ const PayslipSendSystem: React.FC = () => {
                     }}
                   >
                     <TableRow>
-                      <TableCell padding="checkbox" />
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={allRowsSelected}
+                          indeterminate={someRowsSelected}
+                          disabled={sending || !rows.length}
+                          onChange={toggleAllRows}
+                          inputProps={{ 'aria-label': t(`${p}.selectAll`) }}
+                        />
+                      </TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{t(`${p}.colRow`)}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{t(`${p}.colName`)}</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>{t(`${p}.colEmail`)}</TableCell>

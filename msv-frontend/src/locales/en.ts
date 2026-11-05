@@ -1632,6 +1632,7 @@ export default {
         formulaDetected: '({{count}} formula columns — using calculated values; formulas shown in mapping)',
         formulaSample: 'Formula',
         sendDone: 'Send complete: {{ok}} succeeded / {{fail}} failed',
+        sendTimeout: 'The payslip email took too long and the request was aborted. Please try again.',
         sendSaved: ' ({{saved}} saved to MVS My Payslips)',
         issues: {
           missingName: 'Missing name',

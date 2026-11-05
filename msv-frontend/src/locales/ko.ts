@@ -1750,6 +1750,7 @@ export default {
         formulaDetected: '(수식 열 {{count}}개 — 계산값 사용, 매핑에서 수식 확인 가능)',
         formulaSample: '수식',
         sendDone: '발송 완료: 성공 {{ok}}건 / 실패 {{fail}}건',
+        sendTimeout: '첨부 메일 발송 시간이 길어 요청이 끊겼습니다. 다시 시도해 주세요.',
         sendSaved: ' (MVS 사용자 명세서 저장 {{saved}}건)',
         issues: {
           missingName: '성명 없음',

@@ -963,6 +963,10 @@ export const payrollService = {
       ...(opts?.net_salary != null && Number.isFinite(opts.net_salary)
         ? { net_salary: opts.net_salary }
         : {}),
+    }, {
+      // PDF+PNG 첨부 SMTP는 테스트 메일보다 훨씬 김. 기본 10초면 전부 실패로 집계됨
+      timeout: 120000,
+      headers: { 'x-skip-error-popup': 'true' },
     });
     return response.data;
   },
@@ -981,7 +985,10 @@ export const payrollService = {
     html_body?: string;
     company_id?: number;
   }) => {
-    const response = await api.post('/hr/payslips/send-imported', data);
+    const response = await api.post('/hr/payslips/send-imported', data, {
+      timeout: 120000,
+      headers: { 'x-skip-error-popup': 'true' },
+    });
     return response.data;
   },
 

@@ -905,6 +905,7 @@ const PayslipSendSystem: React.FC = () => {
     let ok = 0;
     let fail = 0;
     let saved = 0;
+    let firstError = '';
     let cursor = 0;
     let completed = 0;
 
@@ -941,9 +942,20 @@ const PayslipSendSystem: React.FC = () => {
         if (result.success) {
           ok += 1;
           if (result.data?.saved_for_user) saved += 1;
-        } else fail += 1;
-      } catch {
-        if (!cancelSendRef.current) fail += 1;
+        } else {
+          fail += 1;
+          if (!firstError) firstError = String(result.message || '').trim();
+        }
+      } catch (e: any) {
+        if (!cancelSendRef.current) {
+          fail += 1;
+          if (!firstError) {
+            const timedOut = e?.code === 'ECONNABORTED' || /timeout/i.test(String(e?.message || ''));
+            firstError = timedOut
+              ? t(`${p}.sendTimeout`)
+              : String(e?.response?.data?.message || e?.message || '').trim();
+          }
+        }
       } finally {
         completed += 1;
         setProgress({ done: completed, total: selectedRows.length });
@@ -965,12 +977,19 @@ const PayslipSendSystem: React.FC = () => {
     await Promise.all(workers);
 
     const cancelled = cancelSendRef.current;
-    setNotice(
+    const summary =
       (cancelled
         ? t(`${p}.sendCancelled`, { ok, fail })
         : t(`${p}.sendDone`, { ok, fail })) +
-        (saved ? t(`${p}.sendSaved`, { saved }) : '')
-    );
+      (saved ? t(`${p}.sendSaved`, { saved }) : '') +
+      (firstError ? ` ${firstError}` : '');
+    if (ok === 0 && fail > 0) {
+      setNotice('');
+      setError(summary);
+    } else {
+      setError('');
+      setNotice(summary);
+    }
     cancelSendRef.current = false;
     setSending(false);
   };

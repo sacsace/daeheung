@@ -1777,9 +1777,15 @@ export const sendImportedPayslip = async (req: RequestWithUser, res: Response) =
       message: '메일을 발송했고, 급여 명세서에 저장했습니다.',
       data: { saved_for_user: Boolean(matchedUser?.id), company_id: effectiveCompanyId }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('업로드 급여 명세서 메일 오류:', error);
-    return res.status(500).json({ success: false, message: '메일 발송에 실패했습니다.' });
+    const smtp = typeof error?.message === 'string' ? error.message.trim() : '';
+    return res.status(500).json({
+      success: false,
+      message: smtp
+        ? `메일 발송에 실패했습니다. ${smtp}`.slice(0, 500)
+        : '메일 발송에 실패했습니다.',
+    });
   }
 };
 

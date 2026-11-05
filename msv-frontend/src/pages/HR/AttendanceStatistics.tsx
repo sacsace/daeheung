@@ -25,6 +25,9 @@ import {
   Slider,
   Pagination,
   Tooltip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import MvsPageHeader from '../../components/Common/MvsPageHeader';
 import {
@@ -45,7 +48,8 @@ import {
 import { Refresh as RefreshIcon, RestartAlt as ResetIcon, Schedule as ScheduleIcon } from '@mui/icons-material';
 import {
   Sync as SyncIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import { useTheme, alpha, type SxProps, type Theme } from '@mui/material/styles';
@@ -1055,64 +1059,73 @@ const AttendanceStatistics: React.FC = () => {
         </Alert>
       )}
 
-      <Card elevation={0} sx={{ ...mvsBodyCardSx, mb: 3, p: { xs: 1.75, sm: 2.5 } }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
-          <Box sx={{ minWidth: 0 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem', color: valueColor }}>
-                {t('attendanceManagement.heresnowTitle')}
-              </Typography>
-              <Chip
-                size="small"
-                label={heresnowStatus?.enabled ? t('attendanceManagement.heresnowActive') : t('attendanceManagement.heresnowInactive')}
-                color={heresnowStatus?.enabled ? 'success' : 'default'}
-                sx={{ height: 24, fontWeight: 600 }}
-              />
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25, lineHeight: 1.55 }}>
+      <Accordion
+        disableGutters
+        elevation={0}
+        defaultExpanded={false}
+        sx={{
+          mb: 3,
+          border: '1px solid #B4B4B4',
+          borderRadius: '0 !important',
+          bgcolor: 'background.paper',
+          '&:before': { display: 'none' },
+          '&.Mui-expanded': { margin: 0, mb: 3 },
+        }}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          sx={{
+            minHeight: 44,
+            px: 1.5,
+            py: 0.5,
+            bgcolor: '#F5F5F5',
+            borderBottom: '1px solid transparent',
+            '&.Mui-expanded': {
+              minHeight: 44,
+              borderBottom: '1px solid #B4B4B4',
+            },
+            '& .MuiAccordionSummary-content': {
+              my: 0.75,
+              alignItems: 'center',
+              gap: 1,
+              flexWrap: 'wrap',
+              minWidth: 0,
+            },
+          }}
+        >
+          <Typography sx={{ fontWeight: 700, fontSize: '0.9rem', color: valueColor, whiteSpace: 'nowrap' }}>
+            {t('attendanceManagement.heresnowTitle')}
+          </Typography>
+          <Chip
+            size="small"
+            label={heresnowStatus?.enabled ? t('attendanceManagement.heresnowActive') : t('attendanceManagement.heresnowInactive')}
+            color={heresnowStatus?.enabled ? 'success' : 'default'}
+            sx={{ height: 22, fontWeight: 600, borderRadius: 0.5 }}
+          />
+          <Typography
+            variant="body2"
+            sx={{ color: 'text.secondary', fontSize: '0.8rem', ml: { sm: 'auto' }, whiteSpace: 'nowrap' }}
+          >
+            {t('attendanceManagement.heresnowLastSync')}:{' '}
+            {heresnowStatus?.lastSyncAt ? new Date(heresnowStatus.lastSyncAt).toLocaleString() : '-'}
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails sx={{ px: { xs: 1.5, sm: 2 }, py: 1.75 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.55 }}>
               {t('attendanceManagement.heresnowDescription')}
             </Typography>
-            <Box
-              sx={{
-                mt: 0.5,
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-                gap: 1,
-              }}
-            >
-              <Box
-                sx={{
-                  px: 1.2,
-                  py: 1,
-                  borderRadius: 1.5,
-                  border: (themeArg) => `1px solid ${alpha(themeArg.palette.divider, 0.8)}`,
-                  bgcolor: theme.palette.mode === 'dark'
-                    ? alpha(theme.palette.common.white, 0.02)
-                    : alpha(theme.palette.common.white, 0.75),
-                  gridColumn: { xs: '1 / -1', md: '1 / -1' }
-                }}
-              >
-                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                  {t('attendanceManagement.heresnowLastSync')}
-                </Typography>
-                <Typography sx={{ mt: 0.15, color: 'text.primary', fontWeight: 600, fontSize: '0.84rem' }}>
-                  {heresnowStatus?.lastSyncAt ? new Date(heresnowStatus.lastSyncAt).toLocaleString() : '-'}
-                </Typography>
-              </Box>
-            </Box>
 
             {canManageHeresnow && (
               <Box
                 sx={{
-                  mt: 1.5,
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr auto' },
-                  alignItems: { xs: 'stretch', lg: 'center' },
+                  alignItems: { xs: 'stretch', lg: 'start' },
                   gap: 1,
-                  p: { xs: 1.2, sm: 1.5 },
-                  border: (themeArg) => `1px solid ${alpha(themeArg.palette.divider, 0.65)}`,
-                  borderRadius: 2.5,
-                  bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.common.white, 0.02) : alpha(theme.palette.grey[100], 0.6),
+                  p: 1.25,
+                  border: '1px solid #B4B4B4',
+                  bgcolor: '#FAFAFA',
                 }}
               >
                 <TextField
@@ -1156,81 +1169,80 @@ const AttendanceStatistics: React.FC = () => {
                 </Button>
               </Box>
             )}
-          </Box>
 
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 0.9,
-              flexWrap: 'wrap',
-              pt: 1.35,
-              mt: 0.4,
-              borderTop: (themeArg) => `1px dashed ${alpha(themeArg.palette.divider, 0.75)}`,
-            }}
-          >
-            {canManageHeresnow && (
-              <FormControlLabel
-                control={<Switch size="small" checked={Boolean(heresnowStatus?.enabled)} onChange={(e) => handleHeresnowToggle(e.target.checked)} />}
-                label={t('attendanceManagement.heresnowActive')}
-                sx={{ mr: 0, '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: '0.9rem' } }}
-              />
-            )}
-            {canManageHeresnow && (
-              <TextField
-                type="month"
-                size="small"
-                label={t('attendanceManagement.heresnowSyncMonthLabel')}
-                value={heresnowSyncMonth}
-                onChange={(e) => setHeresnowSyncMonth(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                sx={{ minWidth: 170, '& .MuiInputBase-root': { height: 38 } }}
-              />
-            )}
-            {canManageHeresnow && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={heresnowTestLoading ? <CircularProgress size={16} /> : <SyncIcon />}
-                disabled={heresnowTestLoading || !heresnowStatus?.enabled}
-                onClick={handleHeresnowTest}
-                sx={{ textTransform: 'none', fontWeight: 600, height: 38 }}
-              >
-                {t('attendanceManagement.heresnowTest')}
-              </Button>
-            )}
-            {canManageHeresnow && (
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={heresnowSyncLoading ? <CircularProgress size={16} /> : <SyncIcon />}
-                disabled={heresnowSyncLoading || !heresnowStatus?.enabled}
-                onClick={handleHeresnowSync}
-                sx={{ textTransform: 'none', fontWeight: 700, height: 38 }}
-              >
-                {t('attendanceManagement.heresnowSync')}
-              </Button>
-            )}
-            <Button
-              href={
-                String(heresnowStatus?.heresnowLoginUrl || '').trim()
-                || (String(heresnowStatus?.heresnowUrl || '').replace(/\/+$/, '')
-                  ? `${String(heresnowStatus.heresnowUrl).replace(/\/+$/, '')}/login`
-                  : 'https://www.heresnow.in/login')
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="text"
-              size="small"
-              endIcon={<OpenInNewIcon sx={{ fontSize: '1rem !important' }} />}
-              sx={{ textTransform: 'none', fontWeight: 600, height: 38, px: 1.2 }}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 0.9,
+                flexWrap: 'wrap',
+                pt: 1,
+                borderTop: '1px solid #B4B4B4',
+              }}
             >
-              {t('attendanceManagement.heresnowOpen')}
-            </Button>
+              {canManageHeresnow && (
+                <FormControlLabel
+                  control={<Switch size="small" checked={Boolean(heresnowStatus?.enabled)} onChange={(e) => handleHeresnowToggle(e.target.checked)} />}
+                  label={t('attendanceManagement.heresnowActive')}
+                  sx={{ mr: 0, '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: '0.9rem' } }}
+                />
+              )}
+              {canManageHeresnow && (
+                <TextField
+                  type="month"
+                  size="small"
+                  label={t('attendanceManagement.heresnowSyncMonthLabel')}
+                  value={heresnowSyncMonth}
+                  onChange={(e) => setHeresnowSyncMonth(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 170, '& .MuiInputBase-root': { height: 38 } }}
+                />
+              )}
+              {canManageHeresnow && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={heresnowTestLoading ? <CircularProgress size={16} /> : <SyncIcon />}
+                  disabled={heresnowTestLoading || !heresnowStatus?.enabled}
+                  onClick={handleHeresnowTest}
+                  sx={{ textTransform: 'none', fontWeight: 600, height: 38 }}
+                >
+                  {t('attendanceManagement.heresnowTest')}
+                </Button>
+              )}
+              {canManageHeresnow && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={heresnowSyncLoading ? <CircularProgress size={16} /> : <SyncIcon />}
+                  disabled={heresnowSyncLoading || !heresnowStatus?.enabled}
+                  onClick={handleHeresnowSync}
+                  sx={{ textTransform: 'none', fontWeight: 700, height: 38 }}
+                >
+                  {t('attendanceManagement.heresnowSync')}
+                </Button>
+              )}
+              <Button
+                href={
+                  String(heresnowStatus?.heresnowLoginUrl || '').trim()
+                  || (String(heresnowStatus?.heresnowUrl || '').replace(/\/+$/, '')
+                    ? `${String(heresnowStatus.heresnowUrl).replace(/\/+$/, '')}/login`
+                    : 'https://www.heresnow.in/login')
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="text"
+                size="small"
+                endIcon={<OpenInNewIcon sx={{ fontSize: '1rem !important' }} />}
+                sx={{ textTransform: 'none', fontWeight: 600, height: 38, px: 1.2 }}
+              >
+                {t('attendanceManagement.heresnowOpen')}
+              </Button>
+            </Box>
           </Box>
-        </Box>
-      </Card>
+        </AccordionDetails>
+      </Accordion>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

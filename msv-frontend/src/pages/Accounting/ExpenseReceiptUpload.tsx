@@ -11,11 +11,18 @@ import {
   FormControlLabel,
   Radio,
   RadioGroup,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { Upload as UploadIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { accountingService } from '../../services/api';
+import { ensureI18nLanguage } from '../../locales/i18n';
+import { useMenuStore } from '../../store';
 
 const ExpenseReceiptUpload: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const setMenuLanguage = useMenuStore((s) => s.setLanguage);
   const [searchParams] = useSearchParams();
   const token = useMemo(() => searchParams.get('token') || '', [searchParams]);
   const [file, setFile] = useState<File | null>(null);
@@ -23,14 +30,23 @@ const ExpenseReceiptUpload: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const lang = i18n.language?.startsWith('en') ? 'en' : 'ko';
+
+  const handleLanguage = (_event: React.MouseEvent<HTMLElement>, newLang: 'ko' | 'en' | null) => {
+    if (newLang === null) return;
+    void ensureI18nLanguage(newLang);
+    setMenuLanguage(newLang);
+    setSuccess('');
+    setError('');
+  };
 
   const handleUpload = async () => {
     if (!token) {
-      setError('유효한 토큰이 없습니다. QR 코드를 다시 스캔해주세요.');
+      setError(t('expenseApproval.dialog.receiptPhone.tokenMissing'));
       return;
     }
     if (!file) {
-      setError('영수증 파일을 선택해주세요.');
+      setError(t('expenseApproval.dialog.receiptPhone.fileRequired'));
       return;
     }
     setUploading(true);
@@ -39,54 +55,73 @@ const ExpenseReceiptUpload: React.FC = () => {
     try {
       const response = await accountingService.uploadExpenseReceipt(token, file, invoiceType);
       if (!response?.success) {
-        throw new Error(response?.message || '업로드 실패');
+        throw new Error(response?.message || t('expenseApproval.dialog.receiptPhone.uploadFailed'));
       }
       setSuccess(
         invoiceType === 'proforma'
-          ? 'Proforma Invoice (Quotation) 업로드가 완료되었습니다.'
-          : 'Tax Invoice 업로드가 완료되었습니다.'
+          ? t('expenseApproval.dialog.receiptPhone.successProforma')
+          : t('expenseApproval.dialog.receiptPhone.successTax')
       );
       setFile(null);
     } catch (uploadError: any) {
-      setError(uploadError?.message || '업로드 중 오류가 발생했습니다.');
+      setError(uploadError?.message || t('expenseApproval.dialog.receiptPhone.uploadFailed'));
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh', backgroundColor: 'background.default' }}>
-      <Card sx={{ maxWidth: 520, mx: 'auto', mt: 6 }}>
+    <Box sx={{ p: 2, minHeight: '100vh', backgroundColor: 'background.default' }}>
+      <Card sx={{ maxWidth: 520, mx: 'auto', mt: { xs: 2, sm: 6 } }}>
         <CardContent>
           <Stack spacing={2}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={lang}
+                onChange={handleLanguage}
+                aria-label={t('login.languageToggleAria')}
+              >
+                <ToggleButton value="ko" disableRipple sx={{ textTransform: 'none', px: 1.25 }}>
+                  {t('login.langKo')}
+                </ToggleButton>
+                <ToggleButton value="en" disableRipple sx={{ textTransform: 'none', px: 1.25 }}>
+                  {t('login.langEn')}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
             <Typography variant="h5" fontWeight="bold">
-              영수증 업로드
+              {t('expenseApproval.dialog.receiptPhone.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              QR 코드로 연결된 지출결의서에 영수증을 업로드합니다. Tax / Proforma Invoice (Quotation)을 선택하세요.
+              {t('expenseApproval.dialog.receiptPhone.description')}
             </Typography>
 
             {!token && (
               <Alert severity="warning">
-                유효한 토큰이 없습니다. QR 코드를 다시 스캔해주세요.
+                {t('expenseApproval.dialog.receiptPhone.tokenMissing')}
               </Alert>
             )}
 
             <RadioGroup
-              row
               value={invoiceType}
               onChange={(e) => setInvoiceType(e.target.value as 'tax' | 'proforma')}
             >
-              <FormControlLabel value="tax" control={<Radio size="small" />} label="Tax Invoice" />
+              <FormControlLabel
+                value="tax"
+                control={<Radio size="small" />}
+                label={t('expenseApproval.dialog.receiptPhone.invoiceTypeTax')}
+              />
               <FormControlLabel
                 value="proforma"
                 control={<Radio size="small" />}
-                label="Proforma Invoice (Quotation)"
+                label={t('expenseApproval.dialog.receiptPhone.invoiceTypeProforma')}
               />
             </RadioGroup>
 
             <Button variant="outlined" component="label" disabled={!token}>
-              영수증 사진 선택
+              {t('expenseApproval.dialog.receiptPhone.pickPhoto')}
               <input
                 hidden
                 type="file"
@@ -98,7 +133,7 @@ const ExpenseReceiptUpload: React.FC = () => {
 
             {file && (
               <Typography variant="body2">
-                선택된 파일: {file.name}
+                {t('expenseApproval.dialog.receiptPhone.selectedFile', { name: file.name })}
               </Typography>
             )}
 
@@ -108,7 +143,9 @@ const ExpenseReceiptUpload: React.FC = () => {
               onClick={handleUpload}
               disabled={!token || !file || uploading}
             >
-              {uploading ? '업로드 중...' : '업로드'}
+              {uploading
+                ? t('expenseApproval.dialog.receiptPhone.uploading')
+                : t('expenseApproval.dialog.receiptPhone.upload')}
             </Button>
 
             {success && <Alert severity="success">{success}</Alert>}

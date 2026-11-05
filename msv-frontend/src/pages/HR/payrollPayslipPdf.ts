@@ -201,6 +201,27 @@ async function capturePayslipCanvas(
   }
 }
 
+/** data: URL을 fetch하면 Chrome이 큰 명세서에서 "Failed to fetch"로 끊는다. */
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality?: number
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('명세서 이미지를 만들지 못했습니다.'));
+          return;
+        }
+        resolve(blob);
+      },
+      type,
+      quality
+    );
+  });
+}
+
 function addPayslipCanvasToPdf(
   pdf: { addImage: (...args: any[]) => unknown },
   canvas: HTMLCanvasElement,
@@ -254,9 +275,7 @@ export async function generatePayslipImageBlob(
     ...options,
     purpose: options?.purpose ?? 'email',
   });
-  const dataUrl = canvas.toDataURL('image/png');
-  const res = await fetch(dataUrl);
-  return res.blob();
+  return canvasToBlob(canvas, 'image/jpeg', PDF_EMAIL_JPEG_QUALITY);
 }
 
 /** 메일 발송용 — 한 번 캡처로 PDF(보관) + PNG(첨부) 생성 */
@@ -276,7 +295,7 @@ export async function generatePayslipEmailArtifacts(
   });
   addPayslipCanvasToPdf(pdf, canvas, purpose);
   const pdfBlob = pdf.output('blob');
-  const imageBlob = await (await fetch(canvas.toDataURL('image/png'))).blob();
+  const imageBlob = await canvasToBlob(canvas, 'image/jpeg', PDF_EMAIL_JPEG_QUALITY);
   return { pdfBlob, imageBlob };
 }
 

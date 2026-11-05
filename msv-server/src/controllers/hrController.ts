@@ -1475,10 +1475,11 @@ export const sendPayrollPayslip = async (req: RequestWithUser, res: Response) =>
       },
     ];
     if (imageBuffer) {
+      const isJpeg = imageBuffer.length > 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
       mailAttachments.unshift({
-        filename: `${safeFileBase}.png`,
+        filename: `${safeFileBase}.${isJpeg ? 'jpg' : 'png'}`,
         content: imageBuffer,
-        contentType: 'image/png',
+        contentType: isJpeg ? 'image/jpeg' : 'image/png',
         cid: 'payslip@mvs',
       });
     }
@@ -1679,10 +1680,11 @@ export const sendImportedPayslip = async (req: RequestWithUser, res: Response) =
       },
     ];
     if (imageBuffer) {
+      const isJpeg = imageBuffer.length > 2 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8;
       mailAttachments.unshift({
-        filename: `${filenamePart}.png`,
+        filename: `${filenamePart}.${isJpeg ? 'jpg' : 'png'}`,
         content: imageBuffer,
-        contentType: 'image/png',
+        contentType: isJpeg ? 'image/jpeg' : 'image/png',
         cid: 'payslip@mvs',
       });
     }

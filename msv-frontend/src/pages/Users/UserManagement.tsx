@@ -653,7 +653,7 @@ const UserManagement: React.FC = () => {
   const [viewSalaryRevealed, setViewSalaryRevealed] = useState<number | string | null>(null);
   const [downloadingPersonalRecord, setDownloadingPersonalRecord] = useState(false);
   const [salaryUnlockOpen, setSalaryUnlockOpen] = useState(false);
-  const [salaryUnlockMode, setSalaryUnlockMode] = useState<'view' | 'edit'>('view');
+  const [salaryUnlockMode, setSalaryUnlockMode] = useState<'view' | 'edit' | 'history'>('view');
   const [salaryUnlockPassword, setSalaryUnlockPassword] = useState('');
   const [salaryUnlockError, setSalaryUnlockError] = useState('');
   const [salaryUnlocking, setSalaryUnlocking] = useState(false);

@@ -52,7 +52,7 @@ function isPurgedUser(user: { settings?: unknown }): boolean {
 }
 
 /** 영구 삭제된 계정은 목록·보내기에서 제외. 행은 급여·근태 FK를 위해 남긴다. */
-function excludePurgedUsers(whereClause: Record<string, any>) {
+function excludePurgedUsers(whereClause: any) {
   const existing = whereClause[Op.and];
   const parts = Array.isArray(existing) ? existing : existing ? [existing] : [];
   whereClause[Op.and] = [

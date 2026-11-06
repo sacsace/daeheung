@@ -61,8 +61,27 @@ export function monthsWorkedInFiscalYear(
   return Math.max(0, Math.min(12, months));
 }
 
+/** 입사일부터 기준일까지 만 개월. 입사일이 없으면 0. */
+export function monthsSinceHire(hireDate: string | null | undefined, asOf = new Date()) {
+  if (!hireDate) return 0;
+  const hire = hireDate.slice(0, 10);
+  const today = ymd(asOf.getFullYear(), asOf.getMonth() + 1, asOf.getDate());
+  if (hire > today) return 0;
+  const [sy, sm, sd] = hire.split('-').map(Number);
+  const [ey, em, ed] = today.split('-').map(Number);
+  let months = (ey - sy) * 12 + (em - sm);
+  if (ed < sd) months -= 1;
+  return Math.max(0, months);
+}
+
+/** 12개월 이상이면 100%. */
+export function bonusRatePercent(months: number) {
+  const covered = Math.max(0, Math.min(12, months));
+  return Math.round((covered / 12) * 10000) / 100;
+}
+
 /**
- * 12개월이면 월급 100%.
+ * 12개월 이상이면 월급 100%.
  * 연 1회는 그 금액 전액, 연 2회는 회차마다 50%.
  */
 export function bonusPaymentAmount(
@@ -70,7 +89,8 @@ export function bonusPaymentAmount(
   months: number,
   installmentsPerYear: 1 | 2
 ) {
-  const annual = monthlySalary * (months / 12);
+  const covered = Math.max(0, Math.min(12, months));
+  const annual = monthlySalary * (covered / 12);
   const share = installmentsPerYear === 2 ? 0.5 : 1;
   return Math.round(annual * share);
 }

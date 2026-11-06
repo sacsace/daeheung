@@ -266,6 +266,48 @@ export default function PayrollBonusPanel({
     };
   }
 
+  function confirmRemove() {
+    if (typeof companyId !== 'number' || selected.length === 0) return;
+    if (editLocked) {
+      setError(t('payrollManagement.bonusRegister.removeLocked'));
+      return;
+    }
+    const picked = rows.filter((row) => selected.includes(row.employee_id));
+    if (picked.some((row) => row.status === 'paid')) {
+      setError(t('payrollManagement.bonusRegister.removePaid'));
+      return;
+    }
+    showConfirm(
+      t('payrollManagement.bonusRegister.removeConfirm', { count: picked.length }),
+      () => {
+        void removeSelected(picked.map((row) => row.employee_id));
+      },
+      {
+        title: t('payrollManagement.bonusRegister.removeTitle'),
+        confirmColor: 'error',
+        messageTone: 'danger',
+      }
+    );
+  }
+
+  async function removeSelected(employeeIds: number[]) {
+    if (typeof companyId !== 'number' || employeeIds.length === 0) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await payrollService.removePayrollBonuses(bonusBody({ employee_ids: employeeIds }));
+      setRows((prev) => prev.filter((row) => !employeeIds.includes(row.employee_id)));
+      setSelected((prev) => prev.filter((id) => !employeeIds.includes(id)));
+      showSuccessPopup(t('payrollManagement.bonusRegister.removed', { count: employeeIds.length }));
+      await load({ silent: true });
+    } catch (err: any) {
+      setError(err?.response?.data?.message || t('payrollManagement.bonusRegister.saveFailed'));
+      await load({ silent: true });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save(markPaid: boolean) {
     if (typeof companyId !== 'number' || !fiscalYear) return;
     if (markPaid && selectedSaved.length === 0) return;
@@ -718,6 +760,16 @@ export default function PayrollBonusPanel({
               {t('payrollManagement.bonusRegister.markPaid')}
             </Button>
             <Button
+              size="small"
+              variant="outlined"
+              disabled={!canWrite || saving || editLocked || selected.length === 0}
+              onClick={confirmRemove}
+              sx={mvsBodyOutlinedBtnSx}
+              title={editLocked ? t('payrollManagement.bonusRegister.removeLocked') : ''}
+            >
+              {t('payrollManagement.bonusRegister.remove')}
+            </Button>
+            <Button
               variant="contained"
               disableElevation
               size="small"
@@ -1142,6 +1194,7 @@ export default function PayrollBonusPanel({
         confirmText={dialogState.confirmText}
         cancelText={dialogState.cancelText}
         confirmColor={dialogState.confirmColor}
+        messageTone={dialogState.messageTone}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />

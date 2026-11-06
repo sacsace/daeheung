@@ -26,6 +26,7 @@ import {
   downloadPayrollBonusStatement,
   getPayrollBonuses,
   registerPayrollBonuses,
+  removePayrollBonuses,
   requestPayrollBonusApproval,
   sendPayrollBonusStatements,
   updatePayrollBonusLine,
@@ -197,6 +198,18 @@ router.post(
     mark_paid: { type: 'boolean' },
   }),
   registerPayrollBonuses
+);
+router.post(
+  '/payroll-bonuses/remove',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    employee_ids: { required: true, type: 'array' },
+  }),
+  removePayrollBonuses
 );
 router.put(
   '/payroll-bonuses/line',

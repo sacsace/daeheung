@@ -7,8 +7,9 @@ import { RequestWithUser } from '../types';
 import { Approval, Company, Payroll, PayrollBonus, PayslipDelivery, User } from '../models';
 import {
   bonusPaymentAmount,
+  bonusRatePercent,
   listFiscalYears,
-  monthsWorkedInFiscalYear,
+  monthsSinceHire,
   parseFiscalYearLabel,
 } from '../services/payrollBonusCalc';
 import { buildBonusStatementPdf, BonusStatementInput } from '../services/bonusStatementPdf';
@@ -42,6 +43,10 @@ function resolveScope(req: RequestWithUser) {
 function money(value: unknown) {
   const n = parseFloat(String(value ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+function notExcluded() {
+  return { excluded_at: { [Op.is]: null } };
 }
 
 function monthlyFromPayroll(row: { basic_salary?: unknown; allowances?: unknown; gross_salary?: unknown } | undefined) {
@@ -143,7 +148,13 @@ async function batchIsLocked(
   );
   if (approvalBlocksEdit(current?.status)) return true;
   const sample = await (PayrollBonus as any).findOne({
-    where: { tenant_id: tenantId, company_id: companyId, fiscal_year: fiscalYear, installment },
+    where: {
+      tenant_id: tenantId,
+      company_id: companyId,
+      fiscal_year: fiscalYear,
+      installment,
+      ...notExcluded(),
+    },
     attributes: ['installments_per_year'],
   });
   if (sample && Number(sample.installments_per_year) !== installmentsPerYear) {
@@ -226,25 +237,54 @@ export const getPayrollBonuses = async (req: RequestWithUser, res: Response) => 
       savedRows.map((row: any) => [Number(row.employee_id), row])
     );
 
-    const data = users.map((user: any) => {
-      const hire = user.hire_date ? String(user.hire_date).slice(0, 10) : null;
+    const locked = await batchIsLocked(
+      tenantId,
+      companyId,
+      fy.label,
+      installment,
+      installmentsPerYear
+    );
+    const data = [];
+    for (const user of users) {
       const saved = savedByEmployee.get(user.id);
+      if (saved?.excluded_at) continue;
+      const hire = user.hire_date ? String(user.hire_date).slice(0, 10) : null;
       const savedMatches = Boolean(
         saved && Number(saved.installments_per_year) === installmentsPerYear
       );
-      const months = savedMatches
-        ? Number(saved.months_worked) || 0
-        : monthsWorkedInFiscalYear(hire, fy);
+      const tenure = monthsSinceHire(hire);
+      const paid = savedMatches && saved.status === 'paid';
+      const storedMonths = savedMatches ? Number(saved.months_worked) || 0 : 0;
+      const storedRate = savedMatches ? money(saved.rate_percent) : 0;
+      const manualRate =
+        savedMatches && Math.abs(storedRate - bonusRatePercent(storedMonths)) > 0.05;
       const monthly = savedMatches
         ? money(saved.monthly_salary)
         : monthlyByEmployee.get(user.id) || money(user.salary);
-      const ratePercent = savedMatches
-        ? money(saved.rate_percent)
-        : Math.round((months / 12) * 10000) / 100;
-      const amount = savedMatches
+      const months = paid ? storedMonths : tenure;
+      const ratePercent = paid
+        ? storedRate
+        : manualRate
+          ? storedRate
+          : bonusRatePercent(tenure);
+      const amount = paid
         ? money(saved.amount)
-        : bonusPaymentAmount(monthly, months, installmentsPerYear);
-      return {
+        : manualRate
+          ? money(saved.amount)
+          : bonusPaymentAmount(monthly, tenure, installmentsPerYear);
+      if (savedMatches && !paid && !locked) {
+        const monthsChanged = storedMonths !== months;
+        const rateChanged = Math.abs(storedRate - ratePercent) > 0.01;
+        const amountChanged = Math.abs(money(saved.amount) - amount) > 0.5;
+        if (monthsChanged || rateChanged || amountChanged) {
+          await saved.update({
+            months_worked: months,
+            rate_percent: ratePercent,
+            amount,
+          });
+        }
+      }
+      data.push({
         id: savedMatches ? Number(saved.id) : null,
         employee_id: user.id,
         employee_name: user.username,
@@ -262,8 +302,8 @@ export const getPayrollBonuses = async (req: RequestWithUser, res: Response) => 
         installment,
         status: savedMatches ? saved.status : null,
         paid_at: savedMatches ? saved.paid_at || null : null,
-      };
-    });
+      });
+    }
 
     const approval = await findBonusApproval(
       tenantId,
@@ -347,6 +387,7 @@ export const registerPayrollBonuses = async (req: RequestWithUser, res: Response
           installment,
           installments_per_year: installmentsPerYear,
           employee_id: { [Op.in]: employeeIds },
+          ...notExcluded(),
         },
       });
       if (existing.length !== employeeIds.length) {
@@ -384,10 +425,10 @@ export const registerPayrollBonuses = async (req: RequestWithUser, res: Response
     let saved = 0;
     for (const user of users) {
       const hire = user.hire_date ? String(user.hire_date).slice(0, 10) : null;
-      const months = monthsWorkedInFiscalYear(hire, fy);
+      const months = monthsSinceHire(hire);
       const monthly = monthlyByEmployee.get(user.id) || money(user.salary);
       const amount = bonusPaymentAmount(monthly, months, installmentsPerYear);
-      const ratePercent = Math.round((months / 12) * 10000) / 100;
+      const ratePercent = bonusRatePercent(months);
       const existing = await (PayrollBonus as any).findOne({
         where: {
           tenant_id: tenantId,
@@ -397,6 +438,7 @@ export const registerPayrollBonuses = async (req: RequestWithUser, res: Response
           installment,
         },
       });
+      if (existing?.excluded_at) continue;
       const payload = {
         installments_per_year: installmentsPerYear,
         months_worked: months,
@@ -430,6 +472,103 @@ export const registerPayrollBonuses = async (req: RequestWithUser, res: Response
   } catch (error) {
     console.error('보너스 등록 오류:', error);
     return res.status(500).json({ success: false, message: '보너스 등록에 실패했습니다.' });
+  }
+};
+
+export const removePayrollBonuses = async (req: RequestWithUser, res: Response) => {
+  try {
+    const { tenantId, companyId, userRole, userId } = resolveScope(req);
+    if (tenantId == null || companyId == null) {
+      return res.status(400).json({
+        success: false,
+        message: userRole === 'root' ? '회사를 선택해 주세요.' : '회사 정보가 없습니다.',
+      });
+    }
+    const fy = parseFiscalYearLabel(String(req.body?.fiscal_year || ''));
+    if (!fy) {
+      return res.status(400).json({ success: false, message: '회계연도를 확인해 주세요.' });
+    }
+    const installmentsPerYear = installmentsOf(req.body?.installments_per_year);
+    const installment =
+      installmentsPerYear === 1 ? 1 : Number(req.body?.installment) === 2 ? 2 : 1;
+    const employeeIds = Array.isArray(req.body?.employee_ids)
+      ? req.body.employee_ids.map((id: unknown) => Number(id)).filter((id: number) => id > 0)
+      : [];
+    if (employeeIds.length === 0) {
+      return res.status(400).json({ success: false, message: '직원을 선택해 주세요.' });
+    }
+    if (await batchIsLocked(tenantId, companyId, fy.label, installment, installmentsPerYear)) {
+      return res.status(400).json({
+        success: false,
+        message: '결재가 진행 중이거나 승인된 보너스는 삭제할 수 없습니다.',
+      });
+    }
+
+    const users = await (User as any).findAll({
+      where: {
+        id: { [Op.in]: employeeIds },
+        tenant_id: tenantId,
+        company_id: companyId,
+        status: 'active',
+      },
+      attributes: ['id'],
+    });
+    if (!users.length) {
+      return res.status(400).json({ success: false, message: '직원을 선택해 주세요.' });
+    }
+
+    const existing = await (PayrollBonus as any).findAll({
+      where: {
+        tenant_id: tenantId,
+        company_id: companyId,
+        fiscal_year: fy.label,
+        installment,
+        employee_id: { [Op.in]: users.map((user: any) => user.id) },
+      },
+    });
+    if (existing.some((row: any) => row.status === 'paid' && !row.excluded_at)) {
+      return res.status(400).json({
+        success: false,
+        message: '지급 완료된 보너스는 삭제할 수 없습니다.',
+      });
+    }
+
+    const now = new Date();
+    let removed = 0;
+    for (const user of users) {
+      const row = existing.find((item: any) => Number(item.employee_id) === Number(user.id));
+      if (row?.excluded_at) continue;
+      if (row) {
+        await row.update({ excluded_at: now });
+      } else {
+        await (PayrollBonus as any).create({
+          tenant_id: tenantId,
+          company_id: companyId,
+          employee_id: user.id,
+          fiscal_year: fy.label,
+          installments_per_year: installmentsPerYear,
+          installment,
+          months_worked: 0,
+          monthly_salary: 0,
+          rate_percent: 0,
+          amount: 0,
+          status: 'registered',
+          paid_at: null,
+          excluded_at: now,
+          created_by: userId ?? null,
+        });
+      }
+      removed += 1;
+    }
+
+    return res.json({
+      success: true,
+      message: '선택한 직원을 이번 보너스 대상에서 제외했습니다.',
+      data: { removed },
+    });
+  } catch (error) {
+    console.error('보너스 대상 제외 오류:', error);
+    return res.status(500).json({ success: false, message: '보너스 대상을 삭제하지 못했습니다.' });
   }
 };
 
@@ -474,7 +613,7 @@ export const updatePayrollBonusLine = async (req: RequestWithUser, res: Response
     }
     const monthlyByEmployee = await latestMonthlyByEmployee(tenantId, companyId, [user.id]);
     const hire = user.hire_date ? String(user.hire_date).slice(0, 10) : null;
-    const months = monthsWorkedInFiscalYear(hire, fy);
+    const months = monthsSinceHire(hire);
     const monthly = monthlyByEmployee.get(user.id) || money(user.salary);
     const existing = await (PayrollBonus as any).findOne({
       where: {
@@ -485,9 +624,15 @@ export const updatePayrollBonusLine = async (req: RequestWithUser, res: Response
         installment,
       },
     });
+    if (existing?.excluded_at) {
+      return res.status(400).json({
+        success: false,
+        message: '이번 보너스 대상에서 제외된 직원입니다.',
+      });
+    }
     const payload = {
       installments_per_year: installmentsPerYear,
-      months_worked: existing ? Number(existing.months_worked) || months : months,
+      months_worked: months,
       monthly_salary: existing ? money(existing.monthly_salary) || monthly : monthly,
       rate_percent: Math.round(ratePercent * 100) / 100,
       amount: Math.round(amount),
@@ -552,6 +697,7 @@ export const requestPayrollBonusApproval = async (req: RequestWithUser, res: Res
         fiscal_year: fy.label,
         installment,
         installments_per_year: installmentsPerYear,
+        ...notExcluded(),
       },
     });
     if (!rows.length) {
@@ -698,6 +844,7 @@ async function loadStatementRows(
       installment,
       installments_per_year: installmentsPerYear,
       ...(employeeIds.length ? { employee_id: { [Op.in]: employeeIds } } : {}),
+      ...notExcluded(),
     },
   });
   if (!bonuses.length) return [];

@@ -843,6 +843,17 @@ export const payrollService = {
     return response.data;
   },
 
+  removePayrollBonuses: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    employee_ids: number[];
+  }) => {
+    const response = await api.post('/hr/payroll-bonuses/remove', data);
+    return response.data;
+  },
+
   registerPayrollBonuses: async (data: {
     company_id?: number;
     fiscal_year: string;

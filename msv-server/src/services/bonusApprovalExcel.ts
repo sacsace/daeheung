@@ -24,7 +24,7 @@ const HEADERS = [
   '성명',
   '부서',
   '입사일',
-  '근무월',
+  '근속 개월',
   '월급',
   '지급률(%)',
   '이번 지급액',
@@ -90,6 +90,7 @@ export async function buildAndStoreBonusListExcelAttachment(opts: {
       fiscal_year: fiscalYear,
       installments_per_year: installmentsPerYear,
       installment,
+      excluded_at: null,
     },
     include: [
       {

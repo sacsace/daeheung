@@ -93,7 +93,7 @@ export function bonusStatementView(
       { label: 'Department', value: source.department },
       { label: 'Date of Joining', value: source.hire_date, dateOnly: true },
       { label: 'Email', value: source.email, link: true },
-      { label: 'Months in FY', value: String(source.months_worked ?? 0) },
+      { label: 'Months from hire', value: String(source.months_worked ?? 0) },
       { label: 'Bonus Rate', value: rate, highlight: true },
       { label: 'Monthly Salary', value: money(source.monthly_salary) },
       { label: 'Account Number', value: source.bank_account },

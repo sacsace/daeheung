@@ -60,7 +60,7 @@ function writePage(doc: any, input: BonusStatementInput, unicode: boolean) {
     ['Hire date', text(input.hireDate)],
     ['Fiscal year', text(input.fiscalYear)],
     ['Installment', roundLabel],
-    ['Months worked in FY', String(input.monthsWorked)],
+    ['Months from hire', String(input.monthsWorked)],
     ['Monthly salary', inr(input.monthlySalary)],
     ['Rate', `${Number(input.ratePercent || 0).toFixed(2)}%`],
     ['Bonus amount', inr(input.amount)],

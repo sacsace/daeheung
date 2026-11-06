@@ -15,6 +15,7 @@ interface PayrollBonusAttributes {
   amount: number;
   status: 'registered' | 'paid';
   paid_at?: Date | null;
+  excluded_at?: Date | null;
   created_by?: number | null;
   created_at: Date;
   updated_at: Date;
@@ -23,7 +24,7 @@ interface PayrollBonusAttributes {
 interface PayrollBonusCreationAttributes
   extends Optional<
     PayrollBonusAttributes,
-    'id' | 'status' | 'paid_at' | 'created_by' | 'created_at' | 'updated_at'
+    'id' | 'status' | 'paid_at' | 'excluded_at' | 'created_by' | 'created_at' | 'updated_at'
   > {}
 
 class PayrollBonus
@@ -43,6 +44,7 @@ class PayrollBonus
   public amount!: number;
   public status!: 'registered' | 'paid';
   public paid_at?: Date | null;
+  public excluded_at?: Date | null;
   public created_by?: number | null;
   public readonly created_at!: Date;
   public readonly updated_at!: Date;
@@ -67,6 +69,7 @@ PayrollBonus.init(
       defaultValue: 'registered',
     },
     paid_at: { type: DataTypes.DATE, allowNull: true },
+    excluded_at: { type: DataTypes.DATE, allowNull: true },
     created_by: { type: DataTypes.INTEGER, allowNull: true },
     created_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },

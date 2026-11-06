@@ -662,6 +662,14 @@ export default {
       deleteFailed: '사용자 삭제에 실패했습니다.',
       confirmDeleteSelectedBulk: '정말로 선택한 {{count}}명의 사용자를 삭제하시겠습니까?',
       deleteSelectedSuccess: '{{count}}명의 사용자가 삭제되었습니다.',
+      purgeSelected: '영구 삭제',
+      confirmPurgeInactive:
+        '퇴사 상태인 {{count}}명을 영구 삭제하면 목록에서 사라지고, 같은 이메일과 사용자 ID로 새 사용자를 등록할 수 있습니다. 급여·근태 기록은 남습니다. 계속할까요?',
+      purgeInactiveSuccess: '{{count}}명을 삭제했습니다. 해당 이메일과 사용자 ID로 다시 등록할 수 있습니다.',
+      confirmDeleteMixed:
+        '선택한 {{count}}명 중 재직자는 퇴사 처리되고, 이미 퇴사인 {{resigned}}명은 이메일과 사용자 ID를 다시 쓸 수 있게 삭제됩니다.',
+      deleteMixedSuccess:
+        '선택한 사용자를 처리했습니다. 이미 퇴사였던 계정의 이메일과 사용자 ID는 다시 등록할 수 있습니다.',
       operationFailed: '작업에 실패했습니다.',
       excelSampleDownloadError: 'Excel 샘플 파일 다운로드 중 오류가 발생했습니다.',
       excelExportError: 'Excel 파일 내보내기 중 오류가 발생했습니다.',

@@ -1,5 +1,6 @@
 import express from 'express';
 import { Op } from 'sequelize';
+import sequelize from '../config/database';
 import bcrypt from 'bcrypt';
 import { User, Company, Tenant } from '../models';
 import { resolveDepartmentFieldsForUser, resolveDepartmentFieldsByName } from '../controllers/departmentController';
@@ -33,6 +34,30 @@ const ROLE_RANK: Record<string, number> = {
   audit: 3,
   root: 4,
 };
+
+function isPurgedUser(user: { settings?: unknown }): boolean {
+  const settings = user?.settings;
+  if (!settings || typeof settings !== 'object') return false;
+  return Boolean((settings as { purged_at?: unknown }).purged_at);
+}
+
+/** 영구 삭제된 계정은 목록·보내기에서 제외. 행은 급여·근태 FK를 위해 남긴다. */
+function excludePurgedUsers(whereClause: Record<string, any>) {
+  const existing = whereClause[Op.and];
+  const parts = Array.isArray(existing) ? existing : existing ? [existing] : [];
+  whereClause[Op.and] = [
+    ...parts,
+    sequelize.literal(`COALESCE("User"."settings"->>'purged_at', '') = ''`),
+  ];
+}
+
+function releasedLoginIdentity(userId: number) {
+  const stamp = Date.now().toString(36);
+  return {
+    userid: `p${userId}x${stamp}`.slice(0, 50),
+    email: `purged.${userId}.${stamp}@example.com`,
+  };
+}
 
 function canAssignRole(actorRole: string | undefined, targetRole: string | undefined): boolean {
   if (!targetRole) return true;
@@ -700,6 +725,8 @@ router.get('/', async (req, res) => {
     if (status && typeof status === 'string') {
       whereClause.status = status;
     }
+
+    excludePurgedUsers(whereClause);
 
     if (count_only === 'true' || count_only === '1') {
       const count = await (User as any).count({ where: whereClause });
@@ -1811,8 +1838,37 @@ router.delete('/:id', requireAdminRootOrUserMenuPermission('can_delete'), async 
       });
     }
 
+    // 이미 퇴사(inactive)인 계정을 다시 삭제하면 로그인 ID·이메일을 비운다.
+    // 행은 급여·근태 참조를 위해 남기고, 같은 이메일·사용자 ID는 새 사용자로 등록할 수 있다.
+    if (String(user.status) === 'inactive') {
+      if (!isPurgedUser(user)) {
+        const released = releasedLoginIdentity(Number(user.id));
+        const prevSettings =
+          user.settings && typeof user.settings === 'object' ? user.settings : {};
+        await user.update({
+          status: 'inactive',
+          userid: released.userid,
+          email: released.email,
+          employee_number: null,
+          session_version: Number(user.session_version || 0) + 1,
+          settings: {
+            ...prevSettings,
+            purged_at: new Date().toISOString(),
+          },
+        });
+        invalidateAuthUser(Number(user.id));
+      }
+
+      return res.json({
+        success: true,
+        purged: true,
+        message: '퇴사 사용자가 삭제되었습니다. 이메일과 사용자 ID를 다시 등록할 수 있습니다.'
+      });
+    }
+
     // 물리 삭제 금지 — status를 inactive로 소프트 삭제 (데이터·FK 보존)
     await user.update({ status: 'inactive' });
+    invalidateAuthUser(Number(user.id));
 
     res.json({
       success: true,
@@ -1971,6 +2027,8 @@ router.get(
     if (!includeInactive || userRole === 'user') {
       whereClause.status = { [Op.ne]: 'inactive' };
     }
+
+    excludePurgedUsers(whereClause);
 
     const users = await (User as any).findAll({
       where: whereClause,

@@ -667,6 +667,14 @@ export default {
       deleteFailed: 'Failed to delete user(s).',
       confirmDeleteSelectedBulk: 'Are you sure you want to delete {{count}} selected user(s)?',
       deleteSelectedSuccess: '{{count}} user(s) deleted.',
+      purgeSelected: 'Delete permanently',
+      confirmPurgeInactive:
+        'Permanently deleting {{count}} resigned user(s) removes them from the list. The same email and user ID can be registered again. Payroll and attendance history is kept. Continue?',
+      purgeInactiveSuccess: 'Deleted {{count}} user(s). That email and user ID can be registered again.',
+      confirmDeleteMixed:
+        'Of {{count}} selected users, active ones will be marked resigned. {{resigned}} already resigned user(s) will be removed so their email and user ID can be used again.',
+      deleteMixedSuccess:
+        'Selected users were updated. Email and user ID of already resigned accounts can be registered again.',
       operationFailed: 'Operation failed.',
       excelSampleDownloadError: 'Failed to download Excel sample file.',
       excelExportError: 'Failed to export Excel file.',

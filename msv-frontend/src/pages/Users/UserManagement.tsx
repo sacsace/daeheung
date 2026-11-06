@@ -1248,19 +1248,38 @@ const UserManagement: React.FC = () => {
       return;
     }
 
+    const selectedRows = users.filter((row) => selectedUsers.includes(row.id));
+    const resignedCount = selectedRows.filter((row) => row.status === 'inactive').length;
+    const activeCount = selectedRows.length - resignedCount;
+    const confirmMessage =
+      resignedCount > 0 && activeCount === 0
+        ? t('userManagement.confirmPurgeInactive', { count: resignedCount })
+        : resignedCount > 0
+          ? t('userManagement.confirmDeleteMixed', { count: selectedRows.length, resigned: resignedCount })
+          : t('userManagement.confirmDeleteSelectedBulk', { count: selectedUsers.length });
+    const successMessage =
+      resignedCount > 0 && activeCount === 0
+        ? t('userManagement.purgeInactiveSuccess', { count: resignedCount })
+        : resignedCount > 0
+          ? t('userManagement.deleteMixedSuccess', { count: selectedRows.length })
+          : t('userManagement.deleteSelectedSuccess', { count: selectedUsers.length });
+
     showConfirm(
-      t('userManagement.confirmDeleteSelectedBulk', { count: selectedUsers.length }),
+      confirmMessage,
       async () => {
         try {
           await Promise.all(selectedUsers.map(userId => api.delete(`/users/${userId}`)));
-          setSuccess(t('userManagement.deleteSelectedSuccess', { count: selectedUsers.length }));
+          setSuccess(successMessage);
           setSelectedUsers([]);
           fetchUsers();
         } catch {
           setError(t('userManagement.deleteFailed'));
         }
       },
-      { confirmColor: 'error' }
+      {
+        title: resignedCount > 0 && activeCount === 0 ? t('userManagement.purgeSelected') : undefined,
+        confirmColor: 'error',
+      }
     );
   };
 
@@ -2209,7 +2228,9 @@ const UserManagement: React.FC = () => {
                       boxShadow: 'none',
                     }}
                   >
-                    {t('userManagement.deleteSelected')} ({selectedUsers.length})
+                    {selectedUsers.every((id) => users.find((row) => row.id === id)?.status === 'inactive')
+                      ? t('userManagement.purgeSelected')
+                      : t('userManagement.deleteSelected')} ({selectedUsers.length})
                   </Button>
                 ) : null}
                 <Button

@@ -3,7 +3,9 @@ import {
   Alert,
   Box,
   Button,
+  Card,
   Checkbox,
+  CircularProgress,
   MenuItem,
   Snackbar,
   Table,
@@ -16,7 +18,18 @@ import {
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { payrollService } from '../../services/api';
-import { mvsBodyPrimaryBtnSx } from '../../theme/mvsLayout';
+import {
+  mvsBodyCardSx,
+  mvsBodyListTableSx,
+  mvsBodyListZoneSx,
+  mvsBodyOutlinedBtnSx,
+  mvsBodyPrimaryBtnSx,
+  mvsFilterFieldHeightSx,
+  mvsOutlinedLabelProps,
+  mvsSearchFieldSx,
+  mvsTableBodyRowSx,
+  mvsTableHeadHighlightSx,
+} from '../../theme/mvsLayout';
 
 type BonusRow = {
   employee_id: number;
@@ -33,8 +46,11 @@ type BonusRow = {
 
 type FiscalYear = { label: string; start: string; end: string };
 
-const LINE = '#B4B4B4';
-const HEADER_BG = '#C6EFCE';
+const filterFieldSx = {
+  ...mvsSearchFieldSx,
+  ...mvsFilterFieldHeightSx,
+  minWidth: { xs: '100%', sm: 180 },
+};
 
 function rupee(amount: number) {
   return `Rs. ${Math.round(amount).toLocaleString('en-IN')}`;
@@ -131,168 +147,191 @@ export default function PayrollBonusPanel({
           {error}
         </Alert>
       )}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 1.5, alignItems: 'center' }}>
-        <TextField
-          select
-          size="small"
-          label={t('payrollManagement.bonusRegister.fiscalYear')}
-          value={fiscalYear}
-          onChange={(e) => setFiscalYear(e.target.value)}
-          sx={{ minWidth: 180 }}
-        >
-          {fiscalYears.map((fy) => (
-            <MenuItem key={fy.label} value={fy.label}>
-              {fy.label}
-            </MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label={t('payrollManagement.bonusRegister.times')}
-          value={installments}
-          onChange={(e) => {
-            const next = Number(e.target.value) === 2 ? 2 : 1;
-            setInstallments(next);
-            if (next === 1) setInstallment(1);
+
+      <Card elevation={0} sx={mvsBodyCardSx}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            px: { xs: 2, sm: 2.5 },
+            py: 1.5,
+            bgcolor: '#FFFFFF',
           }}
-          sx={{ minWidth: 200 }}
         >
-          <MenuItem value={1}>{t('payrollManagement.bonusRegister.once')}</MenuItem>
-          <MenuItem value={2}>{t('payrollManagement.bonusRegister.twice')}</MenuItem>
-        </TextField>
-        {installments === 2 && (
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            {t('payrollManagement.bonusRegister.people')} {rows.length}
+            {' · '}
+            {t('payrollManagement.bonusRegister.thisPayment')} {rupee(total)}
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              disabled={!canWrite || saving || selected.length === 0}
+              onClick={() => void save(true)}
+              sx={mvsBodyOutlinedBtnSx}
+            >
+              {t('payrollManagement.bonusRegister.markPaid')}
+            </Button>
+            <Button
+              variant="contained"
+              disableElevation
+              size="small"
+              disabled={!canWrite || saving || selected.length === 0}
+              onClick={() => void save(false)}
+              sx={mvsBodyPrimaryBtnSx}
+            >
+              {t('payrollManagement.bonusRegister.register')}
+            </Button>
+          </Box>
+        </Box>
+        <Box
+          sx={{
+            px: { xs: 2, sm: 2.5 },
+            py: 2,
+            bgcolor: '#FFFFFF',
+            borderTop: '1px solid #E2E8F0',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            gap: 2,
+          }}
+        >
           <TextField
             select
             size="small"
-            label={t('payrollManagement.bonusRegister.round')}
-            value={installment}
-            onChange={(e) => setInstallment(Number(e.target.value) === 2 ? 2 : 1)}
-            sx={{ minWidth: 140 }}
+            label={t('payrollManagement.bonusRegister.fiscalYear')}
+            value={fiscalYear}
+            onChange={(e) => setFiscalYear(e.target.value)}
+            {...mvsOutlinedLabelProps}
+            sx={filterFieldSx}
           >
-            <MenuItem value={1}>{t('payrollManagement.bonusRegister.round1')}</MenuItem>
-            <MenuItem value={2}>{t('payrollManagement.bonusRegister.round2')}</MenuItem>
-          </TextField>
-        )}
-        <Typography variant="body2" sx={{ ml: { sm: 'auto' } }}>
-          {t('payrollManagement.bonusRegister.people')} {rows.length}
-          {' · '}
-          {t('payrollManagement.bonusRegister.thisPayment')} {rupee(total)}
-        </Typography>
-        <Button
-          variant="contained"
-          size="small"
-          disabled={!canWrite || saving || selected.length === 0}
-          onClick={() => void save(false)}
-          sx={mvsBodyPrimaryBtnSx}
-        >
-          {t('payrollManagement.bonusRegister.register')}
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          disabled={!canWrite || saving || selected.length === 0}
-          onClick={() => void save(true)}
-        >
-          {t('payrollManagement.bonusRegister.markPaid')}
-        </Button>
-      </Box>
-
-      <Box sx={{ border: `1px solid ${LINE}`, overflowX: 'auto', bgcolor: '#fff' }}>
-        <Table size="small" sx={{ minWidth: 960 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox" sx={{ bgcolor: HEADER_BG, borderColor: LINE }}>
-                <Checkbox
-                  size="small"
-                  checked={allChecked}
-                  indeterminate={selected.length > 0 && !allChecked}
-                  onChange={() =>
-                    setSelected(allChecked ? [] : rows.map((row) => row.employee_id))
-                  }
-                />
-              </TableCell>
-              {[
-                'name',
-                'department',
-                'hireDate',
-                'months',
-                'monthly',
-                'rate',
-                'amount',
-                'status',
-              ].map((key) => (
-                <TableCell
-                  key={key}
-                  align={['months', 'monthly', 'rate', 'amount'].includes(key) ? 'right' : 'left'}
-                  sx={{
-                    bgcolor: HEADER_BG,
-                    borderColor: LINE,
-                    fontWeight: 700,
-                    fontSize: '0.75rem',
-                    whiteSpace: 'nowrap',
-                    py: 0.75,
-                  }}
-                >
-                  {t(`payrollManagement.bonusRegister.columns.${key}`)}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.employee_id} hover>
-                <TableCell padding="checkbox" sx={{ borderColor: LINE, py: 0.4 }}>
-                  <Checkbox
-                    size="small"
-                    checked={selected.includes(row.employee_id)}
-                    onChange={() =>
-                      setSelected((prev) =>
-                        prev.includes(row.employee_id)
-                          ? prev.filter((id) => id !== row.employee_id)
-                          : [...prev, row.employee_id]
-                      )
-                    }
-                  />
-                </TableCell>
-                <TableCell sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {row.employee_name}
-                  {row.employee_number ? ` (${row.employee_number})` : ''}
-                </TableCell>
-                <TableCell sx={{ borderColor: LINE, py: 0.4 }}>{row.department || '-'}</TableCell>
-                <TableCell sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {row.hire_date || '-'}
-                </TableCell>
-                <TableCell align="right" sx={{ borderColor: LINE, py: 0.4 }}>
-                  {row.months_worked}
-                </TableCell>
-                <TableCell align="right" sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {rupee(row.monthly_salary)}
-                </TableCell>
-                <TableCell align="right" sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {installments === 2 ? `${row.rate_percent}% × 50%` : `${row.rate_percent}%`}
-                </TableCell>
-                <TableCell align="right" sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {rupee(row.amount)}
-                </TableCell>
-                <TableCell sx={{ borderColor: LINE, py: 0.4, whiteSpace: 'nowrap' }}>
-                  {row.status === 'paid'
-                    ? t('payrollManagement.bonusRegister.statusPaid')
-                    : row.status === 'registered'
-                      ? t('payrollManagement.bonusRegister.statusRegistered')
-                      : t('payrollManagement.bonusRegister.statusNone')}
-                </TableCell>
-              </TableRow>
+            {fiscalYears.map((fy) => (
+              <MenuItem key={fy.label} value={fy.label}>
+                {fy.label}
+              </MenuItem>
             ))}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} sx={{ borderColor: LINE }}>
-                  {t('payrollManagement.bonusRegister.empty')}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label={t('payrollManagement.bonusRegister.times')}
+            value={installments}
+            onChange={(e) => {
+              const next = Number(e.target.value) === 2 ? 2 : 1;
+              setInstallments(next);
+              if (next === 1) setInstallment(1);
+            }}
+            {...mvsOutlinedLabelProps}
+            sx={{ ...filterFieldSx, minWidth: { xs: '100%', sm: 200 } }}
+          >
+            <MenuItem value={1}>{t('payrollManagement.bonusRegister.once')}</MenuItem>
+            <MenuItem value={2}>{t('payrollManagement.bonusRegister.twice')}</MenuItem>
+          </TextField>
+          {installments === 2 && (
+            <TextField
+              select
+              size="small"
+              label={t('payrollManagement.bonusRegister.round')}
+              value={installment}
+              onChange={(e) => setInstallment(Number(e.target.value) === 2 ? 2 : 1)}
+              {...mvsOutlinedLabelProps}
+              sx={filterFieldSx}
+            >
+              <MenuItem value={1}>{t('payrollManagement.bonusRegister.round1')}</MenuItem>
+              <MenuItem value={2}>{t('payrollManagement.bonusRegister.round2')}</MenuItem>
+            </TextField>
+          )}
+        </Box>
+      </Card>
+
+      <Box sx={mvsBodyListZoneSx}>
+        <Box sx={mvsBodyListTableSx}>
+          {loading && rows.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <Table size="small" sx={{ minWidth: 960 }}>
+              <TableHead sx={mvsTableHeadHighlightSx}>
+                <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={allChecked}
+                      indeterminate={selected.length > 0 && !allChecked}
+                      onChange={() =>
+                        setSelected(allChecked ? [] : rows.map((row) => row.employee_id))
+                      }
+                    />
+                  </TableCell>
+                  {(['name', 'department', 'hireDate', 'months', 'monthly', 'rate', 'amount', 'status'] as const).map(
+                    (key) => (
+                      <TableCell
+                        key={key}
+                        align={['months', 'monthly', 'rate', 'amount'].includes(key) ? 'right' : 'left'}
+                      >
+                        {t(`payrollManagement.bonusRegister.columns.${key}`)}
+                      </TableCell>
+                    )
+                  )}
+                </TableRow>
+              </TableHead>
+              <TableBody sx={mvsTableBodyRowSx}>
+                {rows.map((row) => (
+                  <TableRow key={row.employee_id} hover>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={selected.includes(row.employee_id)}
+                        onChange={() =>
+                          setSelected((prev) =>
+                            prev.includes(row.employee_id)
+                              ? prev.filter((id) => id !== row.employee_id)
+                              : [...prev, row.employee_id]
+                          )
+                        }
+                      />
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {row.employee_name}
+                      {row.employee_number ? ` (${row.employee_number})` : ''}
+                    </TableCell>
+                    <TableCell>{row.department || '-'}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.hire_date || '-'}</TableCell>
+                    <TableCell align="right">{row.months_worked}</TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {rupee(row.monthly_salary)}
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {installments === 2 ? `${row.rate_percent}% × 50%` : `${row.rate_percent}%`}
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                      {rupee(row.amount)}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {row.status === 'paid'
+                        ? t('payrollManagement.bonusRegister.statusPaid')
+                        : row.status === 'registered'
+                          ? t('payrollManagement.bonusRegister.statusRegistered')
+                          : t('payrollManagement.bonusRegister.statusNone')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                      {t('payrollManagement.bonusRegister.empty')}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </Box>
       </Box>
       <Snackbar
         open={Boolean(toast)}

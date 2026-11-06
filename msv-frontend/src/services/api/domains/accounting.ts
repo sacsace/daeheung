@@ -833,6 +833,28 @@ export const accountingService = {
 };
 
 export const payrollService = {
+  getPayrollBonuses: async (params: {
+    company_id?: number;
+    fiscal_year?: string;
+    installments_per_year?: number;
+    installment?: number;
+  }) => {
+    const response = await api.get('/hr/payroll-bonuses', { params });
+    return response.data;
+  },
+
+  registerPayrollBonuses: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    employee_ids: number[];
+    mark_paid?: boolean;
+  }) => {
+    const response = await api.post('/hr/payroll-bonuses', data);
+    return response.data;
+  },
+
   // 급여 목록 조회
   getPayrolls: async (params?: { page?: number; limit?: number; employee_id?: number; period?: string; company_id?: number }) => {
     const response = await api.get('/hr/payrolls', { params });

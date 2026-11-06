@@ -29,6 +29,7 @@ import ProjectTaskAssignee from './ProjectTaskAssignee';
 import ProjectActivity from './ProjectActivity';
 import ProjectTaskComment from './ProjectTaskComment';
 import Payroll from './Payroll';
+import PayrollBonus from './PayrollBonus';
 import PayrollPeriodLock from './PayrollPeriodLock';
 import PayslipDelivery from './PayslipDelivery';
 import InventoryTransaction from './InventoryTransaction';
@@ -285,6 +286,11 @@ UserPermission.belongsTo(Menu, { foreignKey: 'menu_id', as: 'menu' });
 
 (User as any).hasMany(Payroll, { foreignKey: 'created_by', as: 'createdPayrolls' });
 (Payroll as any).belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+(User as any).hasMany(PayrollBonus, { foreignKey: 'employee_id', as: 'payrollBonuses' });
+(PayrollBonus as any).belongsTo(User, { foreignKey: 'employee_id', as: 'employee' });
+(Company as any).hasMany(PayrollBonus, { foreignKey: 'company_id', as: 'payrollBonuses' });
+(PayrollBonus as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 
 // 발송된 급여 명세서 (엑셀 업로드 → 메일, MVS 사용자 매칭 시)
 (User as any).hasMany(PayslipDelivery, { foreignKey: 'user_id', as: 'payslipDeliveries' });
@@ -745,6 +751,7 @@ export {
   ProjectActivity,
   ProjectTaskComment,
   Payroll,
+  PayrollBonus,
   PayrollPeriodLock,
   PayslipDelivery,
   InventoryTransaction,

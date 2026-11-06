@@ -22,6 +22,7 @@ import {
   getEmploymentTypePaySettings,
   updateEmploymentTypePaySettings,
 } from '../controllers/hrController';
+import { getPayrollBonuses, registerPayrollBonuses } from '../controllers/payrollBonusController';
 import {
   getAttendances,
   getCompanyAttendances,
@@ -173,6 +174,21 @@ router.post(
     company_id: { type: 'number' } // root 회사 선택
   }),
   completePayrollPeriod
+);
+
+router.get('/payroll-bonuses', getPayrollBonuses);
+router.post(
+  '/payroll-bonuses',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    employee_ids: { required: true, type: 'array' },
+    mark_paid: { type: 'boolean' },
+  }),
+  registerPayrollBonuses
 );
 
 // 급여 관련 라우트

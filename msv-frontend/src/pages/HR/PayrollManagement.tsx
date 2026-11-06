@@ -21,6 +21,8 @@ import {
   Chip,
   ListItemIcon,
   ListItemText,
+  Tab,
+  Tabs,
 } from '@mui/material';
 import MvsPageHeader from '../../components/Common/MvsPageHeader';
 import {
@@ -52,6 +54,7 @@ import {
 } from '@mui/icons-material';
 import { payrollService, companyService, userService } from '../../services/api';
 import { useStore } from '../../store';
+import PayrollBonusPanel from './PayrollBonusPanel';
 import PayrollExcelGrid, {
   payrollRecordToGridRow,
   sortPayrollGridRowsDefault,
@@ -63,6 +66,8 @@ import { exportPayrollGridToExcel } from './payroll/exportPayrollGridToExcel';
 import {
   countEligiblePayrollBankRows,
   exportPayrollBankBulkTransfer,
+  readIciciBulkSaved,
+  writeIciciBulkSaved,
   type PayrollBulkBankId,
 } from './payroll/exportPayrollBankBulkTransfer';
 import { downloadPayslipsPdfBatch } from './payrollPayslipPdf';
@@ -162,6 +167,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
   const menuFlags = useMenuRoutePermissionFlags(
     payslipSendOnly ? PAYSLIP_SEND_MENU_ROUTES : PAYROLL_MENU_ROUTES
   );
+  const [payrollSection, setPayrollSection] = useState<'payroll' | 'bonus'>('payroll');
   const [payrollRecords, setPayrollRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -196,7 +202,9 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
   const [bankBulkDialogOpen, setBankBulkDialogOpen] = useState(false);
   const [bankBulkBankId, setBankBulkBankId] = useState<PayrollBulkBankId>('icici');
   const [bankBulkDebitAccount, setBankBulkDebitAccount] = useState('');
+  const [bankBulkCorporateId, setBankBulkCorporateId] = useState('');
   const [bankBulkExporting, setBankBulkExporting] = useState(false);
+  const [bankBulkFormError, setBankBulkFormError] = useState('');
   const [selectedPayslipRowIds, setSelectedPayslipRowIds] = useState<number[]>([]);
   const [payslipDownloadAnchor, setPayslipDownloadAnchor] = useState<null | HTMLElement>(null);
   const [payslipDownloading, setPayslipDownloading] = useState(false);
@@ -841,20 +849,38 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
   );
 
   const openBankBulkDialog = useCallback(() => {
-    setBankBulkDebitAccount(companyDebitAccount);
+    const saved = readIciciBulkSaved(effectiveCompanyId);
+    setBankBulkCorporateId(saved.corporateId);
+    setBankBulkDebitAccount(saved.accountNo || companyDebitAccount);
+    setBankBulkFormError('');
     setBankBulkDialogOpen(true);
-  }, [companyDebitAccount]);
+  }, [companyDebitAccount, effectiveCompanyId]);
 
   const handleExportBankBulk = useCallback(() => {
     if (menuFlags.menusLoading || !menuFlags.canRead || !gridRows.length) return;
     void (async () => {
       setBankBulkExporting(true);
       setError('');
+      setBankBulkFormError('');
       try {
         const bankLabel = t(`payrollManagement.bankBulk.banks.${bankBulkBankId}`);
+        if (bankBulkBankId === 'icici') {
+          const corporateId = bankBulkCorporateId.trim();
+          const accountNo = bankBulkDebitAccount.replace(/\D/g, '');
+          if (!corporateId) {
+            setBankBulkFormError(t('payrollManagement.bankBulk.iciciCorporateIdRequired'));
+            return;
+          }
+          if (accountNo.length !== 12) {
+            setBankBulkFormError(t('payrollManagement.bankBulk.iciciAccountInvalid'));
+            return;
+          }
+          writeIciciBulkSaved(effectiveCompanyId, { corporateId, accountNo });
+        }
         const result = await exportPayrollBankBulkTransfer(gridRows, {
           bankId: bankBulkBankId,
           debitAccount: bankBulkDebitAccount,
+          corporateId: bankBulkCorporateId,
           payrollPeriod: periodKey || periodTrim,
           bankLabel,
         });
@@ -889,6 +915,8 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
     gridRows,
     bankBulkBankId,
     bankBulkDebitAccount,
+    bankBulkCorporateId,
+    effectiveCompanyId,
     periodKey,
     periodTrim,
     t,
@@ -1223,13 +1251,31 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
         </Typography>
       )}
 
-      {!payslipSendOnly && selectedPeriodPayrollComplete && (
+      {!payslipSendOnly && (
+        <Tabs
+          value={payrollSection}
+          onChange={(_, value: 'payroll' | 'bonus') => setPayrollSection(value)}
+          sx={{ mb: 2, minHeight: 40, borderBottom: '1px solid #B4B4B4' }}
+        >
+          <Tab value="payroll" label={t('payrollManagement.tabPayroll')} sx={{ minHeight: 40, textTransform: 'none' }} />
+          <Tab value="bonus" label={t('payrollManagement.tabBonus')} sx={{ minHeight: 40, textTransform: 'none' }} />
+        </Tabs>
+      )}
+
+      {!payslipSendOnly && payrollSection === 'bonus' ? (
+        <PayrollBonusPanel
+          companyId={effectiveCompanyId ?? ''}
+          canWrite={menuFlags.canMutate}
+        />
+      ) : null}
+
+      {!payslipSendOnly && payrollSection === 'payroll' && selectedPeriodPayrollComplete && (
         <Alert severity="info" sx={{ mb: 2 }}>
           {t('payrollManagement.payslip.sendAfterCompleteHint')}
         </Alert>
       )}
 
-      {!payslipSendOnly && (
+      {!payslipSendOnly && payrollSection === 'payroll' && (
         <Box
           sx={{
             display: 'grid',
@@ -1266,6 +1312,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
         </Box>
       )}
 
+      {(payslipSendOnly || payrollSection === 'payroll') && (
       <Card elevation={0} sx={{ ...mvsBodyCardSx, mb: 3 }}>
         <Box
           sx={{
@@ -1600,7 +1647,9 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
           </Button>
         </Box>
       </Card>
+      )}
 
+      {(payslipSendOnly || payrollSection === 'payroll') && (
       <Box sx={mvsBodyListZoneSx}>
         {loading && gridRows.length === 0 ? (
           <Box sx={listStateBoxSx}>
@@ -1705,6 +1754,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
           </Box>
         )}
       </Box>
+      )}
 
       <PayrollPayslipDialog
         open={payslipOpen}
@@ -1749,13 +1799,17 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
                 eligible: bankBulkEligibleCount,
               })}
             </Typography>
+            {bankBulkFormError ? <Alert severity="warning">{bankBulkFormError}</Alert> : null}
             <TextField
               select
               fullWidth
               size="small"
               label={t('payrollManagement.bankBulk.bankLabel')}
               value={bankBulkBankId}
-              onChange={(e) => setBankBulkBankId(e.target.value as PayrollBulkBankId)}
+              onChange={(e) => {
+                setBankBulkFormError('');
+                setBankBulkBankId(e.target.value as PayrollBulkBankId);
+              }}
               disabled={bankBulkExporting}
             >
               <MenuItem value="hana">{t('payrollManagement.bankBulk.banks.hana')}</MenuItem>
@@ -1763,13 +1817,52 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
               <MenuItem value="kotak">{t('payrollManagement.bankBulk.banks.kotak')}</MenuItem>
               <MenuItem value="icici">{t('payrollManagement.bankBulk.banks.icici')}</MenuItem>
             </TextField>
+            {bankBulkBankId === 'icici' && (
+              <TextField
+                fullWidth
+                size="small"
+                label={t('payrollManagement.bankBulk.corporateIdLabel')}
+                value={bankBulkCorporateId}
+                onChange={(e) => {
+                  setBankBulkFormError('');
+                  setBankBulkCorporateId(e.target.value);
+                }}
+                onBlur={() =>
+                  writeIciciBulkSaved(effectiveCompanyId, {
+                    corporateId: bankBulkCorporateId,
+                    accountNo: bankBulkDebitAccount,
+                  })
+                }
+                helperText={t('payrollManagement.bankBulk.corporateIdHelper')}
+                disabled={bankBulkExporting}
+                InputLabelProps={{ shrink: true }}
+              />
+            )}
             <TextField
               fullWidth
               size="small"
-              label={t('payrollManagement.bankBulk.debitAccountLabel')}
+              label={
+                bankBulkBankId === 'icici'
+                  ? t('payrollManagement.bankBulk.accountNoLabel')
+                  : t('payrollManagement.bankBulk.debitAccountLabel')
+              }
               value={bankBulkDebitAccount}
-              onChange={(e) => setBankBulkDebitAccount(e.target.value)}
-              helperText={t('payrollManagement.bankBulk.debitAccountHelper')}
+              onChange={(e) => {
+                setBankBulkFormError('');
+                setBankBulkDebitAccount(e.target.value);
+              }}
+              onBlur={() => {
+                if (bankBulkBankId !== 'icici') return;
+                writeIciciBulkSaved(effectiveCompanyId, {
+                  corporateId: bankBulkCorporateId,
+                  accountNo: bankBulkDebitAccount,
+                });
+              }}
+              helperText={
+                bankBulkBankId === 'icici'
+                  ? t('payrollManagement.bankBulk.accountNoHelper')
+                  : t('payrollManagement.bankBulk.debitAccountHelper')
+              }
               disabled={bankBulkExporting}
               InputLabelProps={{ shrink: true }}
             />
@@ -1789,7 +1882,9 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
             }
             sx={mvsBodyPrimaryBtnSx}
           >
-            {t('payrollManagement.bankBulk.download')}
+            {bankBulkBankId === 'icici'
+              ? t('payrollManagement.bankBulk.downloadTxt')
+              : t('payrollManagement.bankBulk.download')}
           </Button>
         </DialogActions>
       </Dialog>

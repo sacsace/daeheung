@@ -18,13 +18,54 @@ export const PAYROLL_BULK_BANKS: Array<{
 
 export type PayrollBankBulkExportOptions = {
   bankId: PayrollBulkBankId;
-  /** 회사 출금 계좌 (비어 있으면 엑셀에 공란) */
+  /** 회사 출금 계좌 (비어 있으면 엑셀에 공란). ICICI는 12자리 Account No */
   debitAccount?: string;
+  /** ICICI CIB Corporate ID. 한 번 입력하면 회사별로 저장 */
+  corporateId?: string;
   /** YYYY-MM */
   payrollPeriod: string;
   /** 파일명·Remarks용 라벨 */
   bankLabel: string;
 };
+
+const ICICI_BULK_STORAGE_PREFIX = 'mvs.payroll.iciciBulk.';
+
+export type IciciBulkSavedSettings = {
+  corporateId: string;
+  accountNo: string;
+};
+
+function iciciBulkStorageKey(companyId: number | null | undefined): string {
+  const id = companyId != null && Number.isFinite(companyId) && companyId > 0 ? String(companyId) : 'default';
+  return `${ICICI_BULK_STORAGE_PREFIX}${id}`;
+}
+
+export function readIciciBulkSaved(companyId: number | null | undefined): IciciBulkSavedSettings {
+  try {
+    const raw = localStorage.getItem(iciciBulkStorageKey(companyId));
+    if (!raw) return { corporateId: '', accountNo: '' };
+    const parsed = JSON.parse(raw) as { corporateId?: unknown; accountNo?: unknown };
+    return {
+      corporateId: String(parsed.corporateId || '').trim(),
+      accountNo: String(parsed.accountNo || '').replace(/\D/g, ''),
+    };
+  } catch {
+    return { corporateId: '', accountNo: '' };
+  }
+}
+
+export function writeIciciBulkSaved(
+  companyId: number | null | undefined,
+  value: IciciBulkSavedSettings
+): void {
+  const corporateId = String(value.corporateId || '').trim();
+  const accountNo = String(value.accountNo || '').replace(/\D/g, '');
+  if (!corporateId && !accountNo) return;
+  localStorage.setItem(
+    iciciBulkStorageKey(companyId),
+    JSON.stringify({ corporateId, accountNo })
+  );
+}
 
 const HEADER_FILL: ExcelJS.Fill = {
   type: 'pattern',
@@ -123,35 +164,101 @@ function addSheet(
   }
 }
 
-/** ICICI CIB PAB-SAL 계열 (엑셀) */
-function buildIciciRows(
-  rows: PayrollGridRow[],
-  debitAccount: string,
-  period: string
-): { headers: string[]; data: Array<Array<string | number>> } {
-  const headers = [
-    'Beneficiary Name',
-    'Debit Account No',
-    'Beneficiary Account No',
-    'IFSC',
-    'Amount',
-    'Network Type',
-    'Remarks',
-  ];
-  const data = rows.map((row) => {
+function digitsOnly(value: unknown, maxLen?: number): string {
+  let s = String(value ?? '').replace(/\D/g, '');
+  if (maxLen != null && s.length > maxLen) s = s.slice(0, maxLen);
+  return s;
+}
+
+/** 은행 업로드: 영문·숫자·공백만. 특수문자 제거 */
+function bankName(value: unknown, maxLen: number): string {
+  return String(value ?? '')
+    .replace(/[^A-Za-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
+}
+
+function formatMmDdYyyy(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${mm}/${dd}/${date.getFullYear()}`;
+}
+
+function formatIciciAmount(value: number): string {
+  const n = Math.round(Number(value) * 100) / 100;
+  if (!Number.isFinite(n) || n <= 0) return '0.00';
+  return n.toFixed(2);
+}
+
+function downloadTextFile(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * ICICI CIB 벌크 업로드 txt.
+ * 템플릿의 OUTPUT 열(메모장 붙여넣기)과 같은 파이프 구분 파일.
+ * FHR: Corporate ID, 12자리 출금계좌, 합계, 건수, MM/DD/YYYY, External Reference
+ * APW: WIB(ICICI, IFSC 공란) / NFT, 금액, 수취계좌, 이름(80), 비고(30)
+ */
+function buildIciciTxt(rows: PayrollGridRow[], options: PayrollBankBulkExportOptions): string {
+  const corporateId = cleanText(options.corporateId, 32).replace(/\|/g, '');
+  const debitAccount = digitsOnly(options.debitAccount, 12);
+  const period = String(options.payrollPeriod || '').trim();
+  const yyyymm = period.replace(/\D/g, '').slice(0, 6);
+  const fileRemark = bankName(yyyymm ? `Salary ${yyyymm}` : 'Salary', 30);
+  const externalRef = bankName(yyyymm ? `S${yyyymm}` : 'SALARY', 10).replace(/ /g, '');
+  const valueDate = formatMmDdYyyy(new Date());
+  let total = 0;
+  const details: string[] = [];
+
+  for (const row of rows) {
     const ifsc = ifscOf(row);
-    const network = isSameBank(ifsc, 'ICIC') ? 'WIB' : 'NFT';
-    return [
-      cleanText(row.employee_name, 32),
-      cleanText(debitAccount, 34),
-      cleanText(row.bank_account, 34),
-      ifsc,
-      toInt(row.net_salary_payable),
-      network,
-      salaryRemark(period, row.emp_id),
-    ];
-  });
-  return { headers, data };
+    const withinBank = isSameBank(ifsc, 'ICIC');
+    const network = withinBank ? 'WIB' : 'NFT';
+    const amount = toInt(row.net_salary_payable);
+    total += amount;
+    const beneAccount = digitsOnly(row.bank_account, withinBank ? 12 : 30);
+    const beneName = bankName(row.employee_name, 80);
+    const beneRemark = bankName(salaryRemark(period, row.emp_id), 30);
+    const ifscField = withinBank ? '' : ifsc;
+    details.push(
+      [
+        'APW',
+        network,
+        formatIciciAmount(amount),
+        'INR',
+        debitAccount,
+        ifscField,
+        beneAccount,
+        beneName,
+        fileRemark,
+        beneRemark,
+      ].join('|') + '^'
+    );
+  }
+
+  const header =
+    [
+      'FHR',
+      corporateId,
+      debitAccount,
+      'INR',
+      formatIciciAmount(total),
+      String(details.length),
+      valueDate,
+      externalRef,
+    ].join('|') + '^';
+
+  return [header, ...details].join('\r\n');
 }
 
 /** Kotak / 일반 NEFT 벌크 (헤더 행 포함 엑셀) */
@@ -276,12 +383,16 @@ export async function exportPayrollBankBulkTransfer(
   const debit = cleanText(options.debitAccount, 34);
   const period = String(options.payrollPeriod || '').trim();
 
+  if (options.bankId === 'icici') {
+    const content = buildIciciTxt(eligible, { ...options, debitAccount: debit, payrollPeriod: period });
+    const periodSlug = period.replace(/[^\d-]/g, '') || 'payroll';
+    downloadTextFile(`payroll_bulk_icici_${periodSlug}.txt`, content);
+    return { exported: eligible.length, skipped };
+  }
+
   let headers: string[];
   let data: Array<Array<string | number>>;
   switch (options.bankId) {
-    case 'icici':
-      ({ headers, data } = buildIciciRows(eligible, debit, period));
-      break;
     case 'kotak':
       ({ headers, data } = buildKotakRows(eligible, debit, period));
       break;

@@ -1,6 +1,15 @@
 import ExcelJS from 'exceljs';
-import type { PayrollGridRow } from './payrollGridTypes';
 import { downloadExcelWorkbook } from '../../../utils/excelExportStyle';
+
+/** 은행 업로드에 필요한 최소 행. 급여 그리드 행도 그대로 넘길 수 있다. */
+export type BankBulkSourceRow = {
+  employee_name: string;
+  emp_id: string;
+  bank_account: string;
+  ifsc: string;
+  employee_email?: string;
+  net_salary_payable: number;
+};
 
 /** 인도 법인 은행 대량송금 업로드 대상 */
 export type PayrollBulkBankId = 'hana' | 'shinhan' | 'kotak' | 'icici';
@@ -22,10 +31,12 @@ export type PayrollBankBulkExportOptions = {
   debitAccount?: string;
   /** ICICI CIB Corporate ID. 한 번 입력하면 회사별로 저장 */
   corporateId?: string;
-  /** YYYY-MM */
+  /** YYYY-MM 또는 보너스 회계연도 */
   payrollPeriod: string;
   /** 파일명·Remarks용 라벨 */
   bankLabel: string;
+  /** 적요 앞부분. 급여는 Salary, 보너스는 Bonus */
+  purpose?: string;
 };
 
 const ICICI_BULK_STORAGE_PREFIX = 'mvs.payroll.iciciBulk.';
@@ -98,7 +109,7 @@ function cleanText(value: unknown, maxLen?: number): string {
   return s;
 }
 
-function ifscOf(row: PayrollGridRow): string {
+function ifscOf(row: BankBulkSourceRow): string {
   return cleanText(row.ifsc, 11).toUpperCase();
 }
 
@@ -106,13 +117,13 @@ function isSameBank(ifsc: string, prefix: string): boolean {
   return ifsc.length >= 4 && ifsc.slice(0, 4) === prefix.toUpperCase();
 }
 
-function salaryRemark(period: string, empId: string): string {
-  const ym = String(period || '').trim() || 'Salary';
+function salaryRemark(period: string, empId: string, purpose = 'Salary'): string {
+  const ym = String(period || '').trim() || purpose;
   const id = cleanText(empId, 12);
-  return cleanText(`Salary ${ym}${id ? ` ${id}` : ''}`, 30);
+  return cleanText(`${purpose} ${ym}${id ? ` ${id}` : ''}`, 30);
 }
 
-function eligibleRows(rows: PayrollGridRow[]): PayrollGridRow[] {
+function eligibleRows(rows: BankBulkSourceRow[]): BankBulkSourceRow[] {
   return rows.filter((row) => {
     const amount = toInt(row.net_salary_payable);
     const account = cleanText(row.bank_account);
@@ -209,13 +220,14 @@ function downloadTextFile(filename: string, content: string) {
  * FHR: Corporate ID, 12자리 출금계좌, 합계, 건수, MM/DD/YYYY, External Reference
  * APW: WIB(ICICI, IFSC 공란) / NFT, 금액, 수취계좌, 이름(80), 비고(30)
  */
-function buildIciciTxt(rows: PayrollGridRow[], options: PayrollBankBulkExportOptions): string {
+function buildIciciTxt(rows: BankBulkSourceRow[], options: PayrollBankBulkExportOptions): string {
   const corporateId = cleanText(options.corporateId, 32).replace(/\|/g, '');
   const debitAccount = digitsOnly(options.debitAccount, 12);
   const period = String(options.payrollPeriod || '').trim();
   const yyyymm = period.replace(/\D/g, '').slice(0, 6);
-  const fileRemark = bankName(yyyymm ? `Salary ${yyyymm}` : 'Salary', 30);
-  const externalRef = bankName(yyyymm ? `S${yyyymm}` : 'SALARY', 10).replace(/ /g, '');
+  const purpose = bankName(options.purpose || 'Salary', 20) || 'Salary';
+  const fileRemark = bankName(yyyymm ? `${purpose} ${yyyymm}` : purpose, 30);
+  const externalRef = bankName(yyyymm ? `${purpose.slice(0, 1)}${yyyymm}` : purpose, 10).replace(/ /g, '');
   const valueDate = formatMmDdYyyy(new Date());
   let total = 0;
   const details: string[] = [];
@@ -228,7 +240,7 @@ function buildIciciTxt(rows: PayrollGridRow[], options: PayrollBankBulkExportOpt
     total += amount;
     const beneAccount = digitsOnly(row.bank_account, withinBank ? 12 : 30);
     const beneName = bankName(row.employee_name, 80);
-    const beneRemark = bankName(salaryRemark(period, row.emp_id), 30);
+    const beneRemark = bankName(salaryRemark(period, row.emp_id, purpose), 30);
     const ifscField = withinBank ? '' : ifsc;
     details.push(
       [
@@ -263,9 +275,10 @@ function buildIciciTxt(rows: PayrollGridRow[], options: PayrollBankBulkExportOpt
 
 /** Kotak / 일반 NEFT 벌크 (헤더 행 포함 엑셀) */
 function buildKotakRows(
-  rows: PayrollGridRow[],
+  rows: BankBulkSourceRow[],
   debitAccount: string,
-  period: string
+  period: string,
+  purpose: string
 ): { headers: string[]; data: Array<Array<string | number>> } {
   const headers = [
     'Payment Type',
@@ -289,7 +302,7 @@ function buildKotakRows(
       ifsc,
       toInt(row.net_salary_payable),
       'INR',
-      salaryRemark(period, row.emp_id),
+      salaryRemark(period, row.emp_id, purpose),
       cleanText(row.employee_email, 80),
     ];
   });
@@ -298,9 +311,10 @@ function buildKotakRows(
 
 /** 신한은행 인도 — 법인 대량 NEFT/IFT 엑셀 */
 function buildShinhanRows(
-  rows: PayrollGridRow[],
+  rows: BankBulkSourceRow[],
   debitAccount: string,
-  period: string
+  period: string,
+  purpose: string
 ): { headers: string[]; data: Array<Array<string | number>> } {
   const headers = [
     'Sr No',
@@ -324,7 +338,7 @@ function buildShinhanRows(
       toInt(row.net_salary_payable),
       mode,
       cleanText(debitAccount, 34),
-      salaryRemark(period, row.emp_id),
+      salaryRemark(period, row.emp_id, purpose),
       cleanText(row.emp_id, 20).toUpperCase(),
     ];
   });
@@ -333,9 +347,10 @@ function buildShinhanRows(
 
 /** 하나은행 인도 — 법인 대량 NEFT/IFT 엑셀 */
 function buildHanaRows(
-  rows: PayrollGridRow[],
+  rows: BankBulkSourceRow[],
   debitAccount: string,
-  period: string
+  period: string,
+  purpose: string
 ): { headers: string[]; data: Array<Array<string | number>> } {
   const headers = [
     'Serial No',
@@ -359,14 +374,14 @@ function buildHanaRows(
       toInt(row.net_salary_payable),
       transferType,
       cleanText(debitAccount, 34),
-      salaryRemark(period, row.emp_id),
+      salaryRemark(period, row.emp_id, purpose),
       cleanText(row.emp_id, 20).toUpperCase(),
     ];
   });
   return { headers, data };
 }
 
-export function countEligiblePayrollBankRows(rows: PayrollGridRow[]): number {
+export function countEligiblePayrollBankRows(rows: BankBulkSourceRow[]): number {
   return eligibleRows(rows).length;
 }
 
@@ -375,13 +390,14 @@ export function countEligiblePayrollBankRows(rows: PayrollGridRow[]): number {
  * 직원 전원을 선택 은행 포맷으로 내보냅니다(출금 은행 = 선택 은행).
  */
 export async function exportPayrollBankBulkTransfer(
-  rows: PayrollGridRow[],
+  rows: BankBulkSourceRow[],
   options: PayrollBankBulkExportOptions
 ): Promise<{ exported: number; skipped: number }> {
   const eligible = eligibleRows(rows);
   const skipped = Math.max(0, rows.length - eligible.length);
   const debit = cleanText(options.debitAccount, 34);
   const period = String(options.payrollPeriod || '').trim();
+  const purpose = cleanText(options.purpose || 'Salary', 20) || 'Salary';
 
   if (options.bankId === 'icici') {
     const content = buildIciciTxt(eligible, { ...options, debitAccount: debit, payrollPeriod: period });
@@ -394,14 +410,14 @@ export async function exportPayrollBankBulkTransfer(
   let data: Array<Array<string | number>>;
   switch (options.bankId) {
     case 'kotak':
-      ({ headers, data } = buildKotakRows(eligible, debit, period));
+      ({ headers, data } = buildKotakRows(eligible, debit, period, purpose));
       break;
     case 'shinhan':
-      ({ headers, data } = buildShinhanRows(eligible, debit, period));
+      ({ headers, data } = buildShinhanRows(eligible, debit, period, purpose));
       break;
     case 'hana':
     default:
-      ({ headers, data } = buildHanaRows(eligible, debit, period));
+      ({ headers, data } = buildHanaRows(eligible, debit, period, purpose));
       break;
   }
 

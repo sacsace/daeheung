@@ -192,10 +192,14 @@ export function resolveNotificationLink(data?: Record<string, unknown>): string 
 const TITLE_EN_BY_KO: Record<string, string> = {
   '업무 등록': 'Work Task Created',
   '업무 담당자 지정': 'Work Assignee Assignment',
+  '업무 참조 지정': 'Work Watcher Assignment',
   '댓글 멘션': 'Comment Mention',
+  '댓글 답글': 'Comment Reply',
   '프로젝트 댓글 답변 요청': 'Project comment reply needed',
   '프로젝트 댓글': 'Project task comment',
   '프로젝트 댓글 답글': 'Project task comment reply',
+  '프로젝트 초대': 'Project Invitation',
+  'Task 배정': 'Task Assigned',
   '미읽음·대기 항목 알림': 'Unread / pending items reminder',
   '휴가 승인 요청': 'Leave Approval Request',
   '견적서 승인 요청': 'Quotation Approval Request',
@@ -204,9 +208,21 @@ const TITLE_EN_BY_KO: Record<string, string> = {
   '업무 보고서': 'Work Report',
   '업무 보고서 승인': 'Work Report Approved',
   '업무 보고서 피드백': 'Work Report Feedback',
+  '전자결재 승인 요청': 'Approval Request',
+  '전자결재 승인 완료': 'Approval Completed',
+  '전자결재 반려': 'Approval Rejected',
+  '전자결재 에스컬레이션': 'Approval Forwarded',
+  '보너스 지급 결재 요청': 'Bonus Payment Approval Request',
+  '급여 확정 결재 요청': 'Payroll Approval Request',
+  '전자근로계약 승인 요청': 'Employment Contract Approval Request',
+  '전자근로계약 서명 요청': 'Employment Contract Signature Request',
+  '전자근로계약 반려': 'Employment Contract Rejected',
+  '결제 요청 반려': 'Payment Request Rejected',
+  '결제 요청 승인': 'Payment Request Approved',
   '결제 요청': 'Payment Request',
   '결제 승인': 'Payment Approved',
   '결제 반려': 'Payment Rejected',
+  '송금 대기': 'Remittance Pending',
   '지출 승인 요청': 'Expense Approval Request',
   '지출 승인': 'Expense Approved',
   '지출 반려': 'Expense Rejected',
@@ -214,6 +230,7 @@ const TITLE_EN_BY_KO: Record<string, string> = {
   '지출결의서 참조': 'Expense Report CC',
   '지출결의서 수정 반려': 'Expense Report Returned for Revision',
   '지출결의서 승인권자 지정': 'Expense Report Approver Assigned',
+  '지출결의서 승인권자 변경': 'Expense Report Approver Changed',
   '지출결의서 승인': 'Expense Report Approved',
   '지출결의서 반려': 'Expense Report Rejected',
 };
@@ -221,14 +238,91 @@ const TITLE_EN_BY_KO: Record<string, string> = {
 function resolveEnglishTitle(title: string, data?: Record<string, unknown>): string {
   const fromData = String(data?.title_en || '').trim();
   if (fromData) return fromData;
-  const exact = TITLE_EN_BY_KO[title];
+  const raw = String(title || '').trim();
+  const exact = TITLE_EN_BY_KO[raw];
   if (exact) return exact;
-  for (const [ko, en] of Object.entries(TITLE_EN_BY_KO)) {
-    if (title.startsWith(ko)) {
-      return title.replace(ko, en);
+  const keys = Object.keys(TITLE_EN_BY_KO).sort((a, b) => b.length - a.length);
+  for (const ko of keys) {
+    if (raw.startsWith(ko)) {
+      return raw.replace(ko, TITLE_EN_BY_KO[ko]);
     }
   }
-  return title;
+  if (hasKoreanSentence(raw)) return 'Notification';
+  return raw || 'Notification';
+}
+
+/** 문장 안의 한글 조사·동사. 문서 제목(따옴표)은 그대로 둔다. */
+function hasKoreanSentence(text: string): boolean {
+  const outside = String(text || '').replace(/"[^"]*"/g, '');
+  return /[가-힣]/.test(outside);
+}
+
+const MESSAGE_PATTERNS: Array<[RegExp, (...groups: string[]) => string]> = [
+  [/^(.+?)님이 "(.+)" 결재를 요청했습니다\.?$/, (name, title) => `${name} requested approval for "${title}".`],
+  [/^(.+?)님이 "(.+)" 결재를 승인했습니다\. 다음 승인이 필요합니다\.?$/, (name, title) => `${name} approved "${title}". The next approval is required.`],
+  [/^(.+?)님이 "(.+)" 결재를 최종 승인했습니다\.?$/, (name, title) => `${name} gave final approval for "${title}".`],
+  [/^(.+?)님이 "(.+)" 결재를 반려했습니다\.?$/, (name, title) => `${name} rejected the approval "${title}".`],
+  [/^(.+?)님이 "(.+)" 결재를 회원님에게 전달했습니다\.?$/, (name, title) => `${name} forwarded the approval "${title}" to you.`],
+  [/^(.+?)님이 "(.+)" 업무를 등록하고 담당자로 지정했습니다\.?$/, (name, title) => `${name} created "${title}" and assigned you as the assignee.`],
+  [/^(.+?)님이 "(.+)" 카드의 담당자로 지정했습니다\.?$/, (name, title) => `${name} assigned you as the assignee of the "${title}" card.`],
+  [/^(.+?)님이 "(.+)" 카드의 참조자로 지정했습니다\.?$/, (name, title) => `${name} added you as a watcher on the "${title}" card.`],
+  [/^(.+?)님이 "(.+)" 카드 댓글에서 회원님을 언급했습니다\.?$/, (name, title) => `${name} mentioned you in a comment on the "${title}" card.`],
+  [/^(.+?)님이 "(.+)" 카드 댓글에 답글을 남겼습니다\.?$/, (name, title) => `${name} replied to a comment on the "${title}" card.`],
+  [/^(.+?)님이 "(.+)" 댓글에 답글을 남겼습니다\.?$/, (name, title) => `${name} replied to a comment on "${title}".`],
+  [/^(.+?)님이 "(.+)"에 댓글을 남겼습니다\.?$/, (name, title) => `${name} commented on "${title}".`],
+  [/^(.+?)님이 휴가를 신청했습니다\. \((.+)\)$/, (name, period) => `${name} submitted a leave request. (${period})`],
+  [/^(.+?)님의 휴가 승인 요청이 지정되었습니다\. \((.+)\)$/, (name, period) => `You were assigned to approve leave for ${name}. (${period})`],
+  [/^(.+?)님이 견적서 (.+) 승인을 요청했습니다\.?$/, (name, number) => `${name} requested approval for quotation ${number}.`],
+  [/^(.+?)님이 인보이스 (.+) 삭제 승인을 요청했습니다\.?$/, (name, number) => `${name} requested approval to delete invoice ${number}.`],
+  [/^(.+) 삭제 승인 요청이 등록되었습니다\.?$/, (number) => `A delete approval request was registered for ${number}.`],
+  [/^"(.+)" 프로젝트에 초대되었습니다\.?$/, (name) => `You were invited to the "${name}" project.`],
+  [/^(.+?)님이 "(.+)" 보고서를 제출했습니다\. 확인해 주세요\.?$/, (name, title) => `${name} submitted the report "${title}". Please review it.`],
+  [/^(.+?)님이 "(.+)" 보고서를 등록하고 수신자로 지정했습니다\.?$/, (name, title) => `${name} filed the report "${title}" and added you as a recipient.`],
+  [/^(.+?)님이 "(.+)" 보고서를 승인했습니다\.?$/, (name, title) => `${name} approved the report "${title}".`],
+  [/^(.+?)님이 "(.+)" 보고서에 피드백을 남겼습니다\.?$/, (name, title) => `${name} left feedback on the report "${title}".`],
+  [/^(.+?)님이 "(.+)" 지출결의서를 수정 반려했습니다\..*$/, (name, title) => `${name} returned the expense report "${title}" for revision. Please edit and resubmit.`],
+  [/^(.+?)님이 "(.+)" 지출결의서의 승인권자로 지정했습니다\.?$/, (name, title) => `${name} assigned you as the approver for the expense report "${title}".`],
+  [/^(.+?)님이 "(.+)" 지출결의서의 승인권자를 변경했습니다\.?$/, (name, title) => `${name} changed the approver for the expense report "${title}".`],
+  [/^(.+?)님이 "(.+)" 지출결의서를 제출했습니다\. 검토해 주세요\.?$/, (name, title) => `${name} submitted the expense report "${title}". Please review it.`],
+  [/^(.+?)님이 "(.+)" 지출결의서에 참조로 지정했습니다\..*$/, (name, title) => `${name} added you as a CC on the expense report "${title}". You can track its progress.`],
+  [/^(.+?)님이 "(.+)" 지출결의서를 승인했습니다\.?$/, (name, title) => `${name} approved the expense report "${title}".`],
+  [/^(.+?)님이 "(.+)" 지출결의서를 반려했습니다\.?$/, (name, title) => `${name} rejected the expense report "${title}".`],
+  [/^(.+?)님이 결제 요청을 보냈습니다\.?$/, (name) => `${name} sent a payment request.`],
+  [/^(.+?)님의 결제 요청이 승인되었습니다\. 송금이 필요합니다\.?$/, (name) => `${name}'s payment request was approved. Remittance is required.`],
+  [/^결제 요청이 반려되었습니다\. 사유: (.+)$/, (reason) => `The payment request was rejected. Reason: ${reason}`],
+  [/^결제 요청이 반려되었습니다\.?$/, () => 'The payment request was rejected.'],
+  [/^결제 요청이 승인되었습니다\. 사유: (.+)$/, (reason) => `The payment request was approved. Reason: ${reason}`],
+  [/^결제 요청이 승인되었습니다\.?$/, () => 'The payment request was approved.'],
+  [/^(.+) 승인 요청이 있습니다\.?$/, (title) => `Approval requested for ${title}.`],
+  [/^(.+) 서명이 필요합니다\.?$/, (title) => `Your signature is required for ${title}.`],
+  [/^(.+)이\(가\) 반려되었습니다\. 사유: (.+)$/, (title, reason) => `${title} was rejected. Reason: ${reason}`],
+  [/^(.+)이\(가\) 반려되었습니다\.?$/, (title) => `${title} was rejected.`],
+];
+
+function translateNotificationMessage(message: string): string | null {
+  const text = String(message || '').trim();
+  if (!text) return null;
+  for (const [pattern, render] of MESSAGE_PATTERNS) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    return render(...match.slice(1));
+  }
+  return null;
+}
+
+function localizeSystemTitles(text: string): string {
+  return String(text || '')
+    .replace(/보너스 지급 결재/g, 'Bonus payment approval')
+    .replace(/급여 확정 결재/g, 'Payroll approval');
+}
+
+function englishFallback(message: string): string {
+  const quoted = message.match(/"([^"]+)"/)?.[1]?.trim();
+  const name = message.split('님')[0]?.trim();
+  const actor = name && !hasKoreanSentence(name) ? name : '';
+  if (actor && quoted) return `${actor} sent you a notification about "${quoted}".`;
+  if (quoted) return `You have a notification about "${quoted}".`;
+  return 'You have a new notification in MVS.';
 }
 
 function resolveEnglishMessage(
@@ -236,7 +330,10 @@ function resolveEnglishMessage(
   data?: Record<string, unknown>
 ): string {
   const fromData = String(data?.message_en || '').trim();
-  if (fromData) return fromData;
+  if (fromData && !hasKoreanSentence(fromData)) return fromData;
+
+  const translated = translateNotificationMessage(message);
+  if (translated && !hasKoreanSentence(translated)) return translated;
 
   const feature = String(data?.feature || '');
   const actor = String(data?.actor_name || '').trim();
@@ -248,54 +345,16 @@ function resolveEnglishMessage(
   if (feature === 'work_board_comment' && actor && cardTitle) {
     return `${actor} mentioned you in a comment on the "${cardTitle}" card.`;
   }
-  if (feature === 'vacation') {
-    return message
-      .replace(/님이 휴가를 신청했습니다\./g, ' submitted a leave request.')
-      .replace(/님이/g, '')
-      .trim();
-  }
   if (feature === 'quotation') {
     const qn = String(data?.quotation_number || '').trim();
-    if (qn && message.includes('승인을 요청')) {
+    if (qn) {
       const name = message.split('님이')[0]?.trim() || 'Someone';
       return `${name} requested approval for quotation ${qn}.`;
     }
   }
-  if (feature === 'expense_report') {
-    const name = message.split('님이')[0]?.trim() || 'Someone';
-    const quoted = message.match(/"([^"]+)"/);
-    const item = quoted?.[1]?.trim() || 'an expense report';
 
-    if (message.includes('결제 요청을 보냈습니다')) {
-      return `${name} sent a payment request.`;
-    }
-    if (message.includes('삭제 승인 요청')) {
-      return message.replace(
-        '삭제 승인 요청이 등록되었습니다.',
-        'delete approval request has been registered.'
-      );
-    }
-    if (message.includes('제출했습니다') && message.includes('검토')) {
-      return `${name} submitted the expense report "${item}". Please review.`;
-    }
-    if (message.includes('참조로 지정')) {
-      return `${name} added you as a CC on the expense report "${item}". You can track its progress.`;
-    }
-    if (message.includes('수정 반려')) {
-      return `${name} returned the expense report "${item}" for revision. Please edit and resubmit.`;
-    }
-    if (message.includes('승인권자로 지정')) {
-      return `${name} assigned you as the approver for the expense report "${item}".`;
-    }
-    if (message.includes('승인했습니다')) {
-      return `${name} approved the expense report "${item}".`;
-    }
-    if (message.includes('반려했습니다') && !message.includes('수정 반려')) {
-      return `${name} rejected the expense report "${item}".`;
-    }
-  }
-
-  // 일반적인 "OOO님이 …" 패턴 폴백은 호출부 title_en/message_en 또는 위 매핑에 의존
+  if (translated) return hasKoreanSentence(translated) ? englishFallback(message) : translated;
+  if (hasKoreanSentence(message)) return englishFallback(message);
   return message;
 }
 
@@ -354,8 +413,8 @@ export async function sendUserNotificationEmail(params: {
   }
 
   const link = resolveNotificationLink(params.data);
-  const titleEn = resolveEnglishTitle(params.title, params.data);
-  const messageEn = resolveEnglishMessage(params.message, params.data);
+  const titleEn = localizeSystemTitles(resolveEnglishTitle(params.title, params.data));
+  const messageEn = localizeSystemTitles(resolveEnglishMessage(params.message, params.data));
   const content = {
     titleKo: titleEn,
     titleEn,

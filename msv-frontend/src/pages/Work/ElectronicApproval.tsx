@@ -107,7 +107,7 @@ import PromptDialog from '../../components/Common/PromptDialog';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import { usePromptDialog } from '../../hooks/usePromptDialog';
 import { useMenuRoutePermissionFlags } from '../../hooks/useMenuRoutePermissionFlags';
-import { notifyApprovalStatusChanged } from '../../utils/approvalStatusSync';
+import { notifyApprovalStatusChanged, subscribeApprovalStatusChanged } from '../../utils/approvalStatusSync';
 
 const WORK_APPROVAL_MENU_ROUTES = ['/work/approval', '/work'] as const;
 
@@ -1187,6 +1187,8 @@ const ElectronicApproval: React.FC = () => {
     loadApprovalData();
   }, [loadApprovalData]);
 
+  useEffect(() => subscribeApprovalStatusChanged(() => void loadApprovalData()), [loadApprovalData]);
+
   useEffect(() => {
     if (users.length === 0) return;
     setDocuments((prev) => {
@@ -1632,7 +1634,16 @@ const ElectronicApproval: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-          {flow.map((step, idx) => (
+          {flow.map((step, idx) => {
+            const shownStatus: ApprovalStep['status'] =
+              document.status === 'rejected' && step.status === 'pending' ? 'rejected' : step.status;
+            const reasonText = String(step.comment || '').trim();
+            const reasonLabel = shownStatus === 'rejected'
+              ? t('approval.rejectReasonLabel')
+              : shownStatus === 'skipped' || step.escalated
+                ? t('approval.detail.forwardReasonLabel')
+                : t('approval.detail.commentLabel');
+            return (
             <Box key={`${step.id}-${idx}`} sx={{ display: 'flex', gap: 1.5 }}>
               <Box sx={{
                 width: 32,
@@ -1658,9 +1669,9 @@ const ElectronicApproval: React.FC = () => {
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>{step.approverName}</Typography>
                     <Chip label={t('approval.flowApprove')} size="small" variant="outlined" />
                     <Chip
-                      label={getStepStatusLabel(step.status)}
+                      label={getStepStatusLabel(shownStatus)}
                       size="small"
-                      color={getStepStatusColor(step.status) as 'success' | 'warning' | 'error' | 'info' | 'default'}
+                      color={getStepStatusColor(shownStatus) as 'success' | 'warning' | 'error' | 'info' | 'default'}
                     />
                   </Box>
                   <Typography variant="caption" color="text.secondary">
@@ -1676,10 +1687,30 @@ const ElectronicApproval: React.FC = () => {
                       {t('approval.detail.approvalDate')}: {formatDateTime(step.approvedAt)}
                     </Typography>
                   )}
+                  {reasonText ? (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        display: 'block',
+                        mt: 0.75,
+                        whiteSpace: 'pre-wrap',
+                        color: shownStatus === 'rejected' ? 'error.main' : 'text.primary',
+                        fontWeight: shownStatus === 'rejected' ? 600 : 400,
+                      }}
+                    >
+                      {reasonLabel}: {reasonText}
+                    </Typography>
+                  ) : null}
                 </Box>
               </Box>
             </Box>
-          ))}
+            );
+          })}
+          {document.status === 'rejected' && !flow.some((step) => String(step.comment || '').trim()) && (
+            <Typography variant="body2" color="error.main" sx={{ pl: 5.5, mt: 0.5 }}>
+              {t('approval.detail.rejectReasonMissing')}
+            </Typography>
+          )}
           {flow.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ pl: 5.5 }}>
               {t('approval.detail.noApprover')}
@@ -3237,7 +3268,8 @@ const ElectronicApproval: React.FC = () => {
                         name: step.approverName,
                         status: getStepStatusLabel(step.status),
                         reason:
-                          (step.status === 'skipped' || step.escalated) && step.comment
+                          step.comment &&
+                          (step.status === 'skipped' || step.status === 'rejected' || step.escalated)
                             ? step.comment
                             : undefined,
                       });

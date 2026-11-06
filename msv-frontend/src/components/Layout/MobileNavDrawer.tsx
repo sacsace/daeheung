@@ -14,6 +14,7 @@ import {
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import { useLocation, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { prefetchRoute } from '../Common/LazyPage';
 import { useTranslation } from 'react-i18next';
 import { useMenuStore } from '../../store';
 import type { Menu } from '../../services/menuService';
@@ -96,6 +97,8 @@ const MobileNavDrawer: React.FC<MobileNavDrawerProps> = ({ open, onClose }) => {
       <React.Fragment key={menu.id}>
         <ListItem disablePadding sx={{ mb: 0.15 }}>
           <ListItemButton
+            onMouseEnter={() => prefetchRoute(menu.route)}
+            onFocus={() => prefetchRoute(menu.route)}
             onClick={() => handleClick(menu)}
             sx={{
               mx: 1,

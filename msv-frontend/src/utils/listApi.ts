@@ -22,6 +22,7 @@ export const isCollectionListGet = (config?: InternalAxiosRequestConfig | { meth
   if (url.startsWith('auth/')) return false;
   if (/\/\d+(?:\?|$)/.test(url)) return false;
   if (NON_LIST_GET_SUFFIX.test(url)) return false;
+  if (/payroll-bonuses(?:\?|$)/.test(url)) return false;
   if (/^notifications(?:\/|$)/.test(url)) return false;
 
   return true;

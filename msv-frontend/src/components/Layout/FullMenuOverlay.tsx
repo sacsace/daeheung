@@ -17,6 +17,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { prefetchRoute } from '../Common/LazyPage';
 import { useTranslation } from 'react-i18next';
 import { useMenuStore } from '../../store';
 import type { Menu } from '../../services/menuService';
@@ -106,6 +107,7 @@ const FullMenuOverlay: React.FC<FullMenuOverlayProps> = ({
   const goTo = useCallback(
     (route?: string) => {
       if (!route) return;
+      prefetchRoute(route);
       navigate(route);
       onClose();
     },
@@ -135,6 +137,8 @@ const FullMenuOverlay: React.FC<FullMenuOverlayProps> = ({
       component="button"
       type="button"
       underline="none"
+      onMouseEnter={() => prefetchRoute(menu.route)}
+      onFocus={() => prefetchRoute(menu.route)}
       onClick={() => goTo(menu.route)}
       sx={{
         display: 'block',

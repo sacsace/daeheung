@@ -848,10 +848,58 @@ export const payrollService = {
     fiscal_year: string;
     installments_per_year: number;
     installment: number;
-    employee_ids: number[];
+    employee_ids?: number[];
+    generate_all?: boolean;
     mark_paid?: boolean;
   }) => {
     const response = await api.post('/hr/payroll-bonuses', data);
+    return response.data;
+  },
+
+  updatePayrollBonusLine: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    employee_id: number;
+    rate_percent: number;
+    amount: number;
+  }) => {
+    const response = await api.put('/hr/payroll-bonuses/line', data);
+    return response.data;
+  },
+
+  requestPayrollBonusApproval: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    approver_id: number;
+  }) => {
+    const response = await api.post('/hr/payroll-bonuses/approval', data);
+    return response.data;
+  },
+
+  downloadPayrollBonusStatement: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    employee_ids: number[];
+  }) => {
+    const response = await api.post('/hr/payroll-bonuses/statement', data);
+    return response.data;
+  },
+
+  sendPayrollBonusStatements: async (data: {
+    company_id?: number;
+    fiscal_year: string;
+    installments_per_year: number;
+    installment: number;
+    employee_ids: number[];
+    statements?: Array<{ employee_id: number; pdf_base64: string }>;
+  }) => {
+    const response = await api.post('/hr/payroll-bonuses/send', data);
     return response.data;
   },
 

@@ -22,7 +22,14 @@ import {
   getEmploymentTypePaySettings,
   updateEmploymentTypePaySettings,
 } from '../controllers/hrController';
-import { getPayrollBonuses, registerPayrollBonuses } from '../controllers/payrollBonusController';
+import {
+  downloadPayrollBonusStatement,
+  getPayrollBonuses,
+  registerPayrollBonuses,
+  requestPayrollBonusApproval,
+  sendPayrollBonusStatements,
+  updatePayrollBonusLine,
+} from '../controllers/payrollBonusController';
 import {
   getAttendances,
   getCompanyAttendances,
@@ -185,10 +192,62 @@ router.post(
     installments_per_year: { required: true, type: 'number' },
     installment: { type: 'number' },
     company_id: { type: 'number' },
-    employee_ids: { required: true, type: 'array' },
+    employee_ids: { type: 'array' },
+    generate_all: { type: 'boolean' },
     mark_paid: { type: 'boolean' },
   }),
   registerPayrollBonuses
+);
+router.put(
+  '/payroll-bonuses/line',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    employee_id: { required: true, type: 'number' },
+    rate_percent: { required: true, type: 'number' },
+    amount: { required: true, type: 'number' },
+  }),
+  updatePayrollBonusLine
+);
+router.post(
+  '/payroll-bonuses/approval',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    approver_id: { required: true, type: 'number' },
+  }),
+  requestPayrollBonusApproval
+);
+router.post(
+  '/payroll-bonuses/statement',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    employee_ids: { required: true, type: 'array' },
+  }),
+  downloadPayrollBonusStatement
+);
+router.post(
+  '/payroll-bonuses/send',
+  restrictAuditToReadOnly,
+  validateBody({
+    fiscal_year: { required: true, type: 'string', minLength: 9, maxLength: 9 },
+    installments_per_year: { required: true, type: 'number' },
+    installment: { type: 'number' },
+    company_id: { type: 'number' },
+    employee_ids: { required: true, type: 'array' },
+    statements: { type: 'array' },
+  }),
+  sendPayrollBonusStatements
 );
 
 // 급여 관련 라우트

@@ -5,6 +5,7 @@ import { Op, literal } from 'sequelize';
 import { pushNotification } from './notificationController';
 import SocketService from '../services/socketService';
 import { ensurePayrollApprovalExcelAttachment } from '../services/payrollApprovalExcel';
+import { ensureBonusApprovalExcelAttachment } from '../services/bonusApprovalExcel';
 
 /** 결재 흐름에 승인자로 포함된 문서 (승인 완료 후에도 조회되도록) */
 function approvalFlowContainsApprover(userId: number) {
@@ -47,6 +48,20 @@ const flowApproverId = (step: any): number | null => {
   const raw = step.approverId ?? step.approver_id;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/** JSONB는 같은 배열을 고치면 변경으로 안 잡혀 사유·단계가 저장되지 않는다. */
+const cloneFlow = (value: unknown): any[] =>
+  parseJsonArray(value).map((step) => ({ ...(step as object) }));
+
+const saveApprovalFlow = async (
+  approval: any,
+  fields: Record<string, unknown>,
+  flow: any[]
+) => {
+  approval.set({ ...fields, approval_flow: flow });
+  approval.changed('approval_flow', true);
+  await approval.save();
 };
 
 const notifyApprovalUser = (
@@ -257,6 +272,7 @@ export const getApproval = async (req: RequestWithUser, res: Response) => {
 
     try {
       await ensurePayrollApprovalExcelAttachment(approval);
+      await ensureBonusApprovalExcelAttachment(approval);
       await approval.reload({
         include: [
           {
@@ -596,16 +612,19 @@ export const approveApproval = async (req: RequestWithUser, res: Response) => {
     }
 
     // approval_flow 업데이트
-    const approvalFlow = parseJsonArray(approval.approval_flow);
+    const approvalFlow = cloneFlow(approval.approval_flow);
     const currentStepIndex = approvalFlow.findIndex(
       (step: any) => flowApproverId(step) === Number(userId) && step.status === 'pending'
     );
     
     if (currentStepIndex >= 0) {
-      approvalFlow[currentStepIndex].status = 'approved';
-      approvalFlow[currentStepIndex].approvedAt = new Date().toISOString();
-      approvalFlow[currentStepIndex].comment = comment || null;
-      approvalFlow[currentStepIndex].signature = signature || null; // 서명 추가
+      approvalFlow[currentStepIndex] = {
+        ...approvalFlow[currentStepIndex],
+        status: 'approved',
+        approvedAt: new Date().toISOString(),
+        comment: comment || null,
+        signature: signature || null,
+      };
     }
 
     // 다음 승인자 확인
@@ -614,11 +633,10 @@ export const approveApproval = async (req: RequestWithUser, res: Response) => {
     
     if (nextApproverId) {
       // 다음 승인자가 있으면 in_review 상태 유지
-      await approval.update({
+      await saveApprovalFlow(approval, {
         status: 'in_review',
         current_approver_id: nextApproverId,
-        approval_flow: approvalFlow
-      });
+      }, approvalFlow);
       const approverName = req.user?.username || '승인자';
       notifyApprovalUser(
         req,
@@ -629,11 +647,10 @@ export const approveApproval = async (req: RequestWithUser, res: Response) => {
       );
     } else {
       // 모든 승인이 완료되면 approved 상태로 변경
-      await approval.update({
+      await saveApprovalFlow(approval, {
         status: 'approved',
         current_approver_id: null,
-        approval_flow: approvalFlow
-      });
+      }, approvalFlow);
       const approverName = req.user?.username || '승인자';
       notifyApprovalUser(
         req,
@@ -765,10 +782,17 @@ export const addComment = async (req: RequestWithUser, res: Response) => {
 export const rejectApproval = async (req: RequestWithUser, res: Response) => {
   try {
     const { id } = req.params;
-    const { comment } = req.body;
+    const reason = String(req.body?.comment || '').trim();
     const tenantId = req.user?.tenant_id;
     const companyId = req.user?.company_id;
     const userId = req.user?.id;
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: '반려 사유를 입력해 주세요.',
+      });
+    }
 
     const approval = await (Approval as any).findOne({
       where: {
@@ -788,22 +812,38 @@ export const rejectApproval = async (req: RequestWithUser, res: Response) => {
     }
 
     // approval_flow 업데이트
-    const approvalFlow = parseJsonArray(approval.approval_flow);
-    const currentStepIndex = approvalFlow.findIndex(
+    const approvalFlow = cloneFlow(approval.approval_flow);
+    let currentStepIndex = approvalFlow.findIndex(
       (step: any) => flowApproverId(step) === Number(userId) && step.status === 'pending'
     );
-    
-    if (currentStepIndex >= 0) {
-      approvalFlow[currentStepIndex].status = 'rejected';
-      approvalFlow[currentStepIndex].approvedAt = new Date().toISOString();
-      approvalFlow[currentStepIndex].comment = comment || null;
+    if (currentStepIndex < 0) {
+      currentStepIndex = approvalFlow.findIndex((step: any) => step.status === 'pending');
     }
 
-    await approval.update({
+    const rejectedAt = new Date().toISOString();
+    if (currentStepIndex >= 0) {
+      approvalFlow[currentStepIndex] = {
+        ...approvalFlow[currentStepIndex],
+        status: 'rejected',
+        approvedAt: rejectedAt,
+        comment: reason,
+      };
+    } else {
+      approvalFlow.push({
+        id: 1,
+        stepOrder: 1,
+        approverId: Number(userId),
+        approverName: req.user?.username || '',
+        status: 'rejected',
+        approvedAt: rejectedAt,
+        comment: reason,
+      });
+    }
+
+    await saveApprovalFlow(approval, {
       status: 'rejected',
       current_approver_id: null,
-      approval_flow: approvalFlow
-    });
+    }, approvalFlow);
 
     const approverName = req.user?.username || '승인자';
     notifyApprovalUser(
@@ -887,7 +927,7 @@ export const escalateApproval = async (req: RequestWithUser, res: Response) => {
       });
     }
 
-    const approvalFlow = parseJsonArray(approval.approval_flow);
+    const approvalFlow = cloneFlow(approval.approval_flow);
     const escalationCount = approvalFlow.filter((step: any) => step.escalated).length;
 
     if (escalationCount >= 4) {
@@ -963,11 +1003,10 @@ export const escalateApproval = async (req: RequestWithUser, res: Response) => {
       status: 'pending'
     });
 
-    await approval.update({
+    await saveApprovalFlow(approval, {
       status: 'in_review',
       current_approver_id: nextApprover.id,
-      approval_flow: approvalFlow
-    });
+    }, approvalFlow);
 
     const actorName = req.user?.username || '승인자';
     notifyApprovalUser(

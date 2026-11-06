@@ -4,6 +4,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { Box } from '@mui/material';
 import { theme } from '../../theme';
 import PayslipContent, {
+  type PayslipDocumentView,
   type PayslipHeaderLayout,
   type PayslipLabels,
   type PayslipCompanyInfo
@@ -82,7 +83,8 @@ function renderPayslipTree(
   companyInfo: PayslipCompanyInfo | null | undefined,
   rootId: string,
   headerLayout: PayslipHeaderLayout,
-  companyId?: string | number | null
+  companyId?: string | number | null,
+  documentView?: PayslipDocumentView
 ) {
   return React.createElement(
     ThemeProvider,
@@ -102,7 +104,8 @@ function renderPayslipTree(
         wide: true,
         forPdf: true,
         showTitle: false,
-        headerLayout
+        headerLayout,
+        documentView
       })
     )
   );
@@ -133,6 +136,11 @@ type PayslipPdfOptions = {
   companyId?: string | number | null;
   /** download: 고해상도 / email: 첨부 용량 완화 (기본 download) */
   purpose?: 'download' | 'email';
+  labels?: PayslipLabels;
+  documentView?: PayslipDocumentView;
+  documentViewForRow?: (row: PayrollGridRow) => PayslipDocumentView | undefined;
+  /** 지정하면 급여 명세서 기본 파일명 대신 사용 */
+  filename?: string;
 };
 
 async function capturePayslipCanvas(
@@ -140,7 +148,8 @@ async function capturePayslipCanvas(
   companyInfo: PayslipCompanyInfo | null | undefined,
   options?: PayslipPdfOptions
 ): Promise<HTMLCanvasElement> {
-  const labels = buildPayslipLabels(options?.locale);
+  const labels = options?.labels || buildPayslipLabels(options?.locale);
+  const documentView = options?.documentViewForRow?.(row) ?? options?.documentView;
   const purpose = options?.purpose ?? 'download';
   const isEmail = purpose === 'email';
   const captureScale = isEmail ? PDF_EMAIL_SCALE : PDF_DOWNLOAD_SCALE;
@@ -166,7 +175,8 @@ async function capturePayslipCanvas(
       safeCompanyInfo,
       rootId,
       options?.headerLayout || 'standard',
-      options?.companyId ?? null
+      options?.companyId ?? null,
+      documentView
     )
   );
 
@@ -375,7 +385,10 @@ export async function downloadPayslipsPdfBatch(
   if (list.length === 1) {
     const row = list[0];
     const blob = await generatePayslipPdfBlob(row, companyInfo, options);
-    downloadPayslipPdf(blob, buildPayslipPdfFilename(row.working_month, row.employee_name));
+    downloadPayslipPdf(
+      blob,
+      options?.filename || buildPayslipPdfFilename(row.working_month, row.employee_name)
+    );
     onProgress?.(1, 1);
     return { count: 1 };
   }
@@ -400,7 +413,9 @@ export async function downloadPayslipsPdfBatch(
     list[0].working_month ||
     'Unknown';
   const month = String(period).trim() || 'Unknown';
-  const filename = `Payslips (${month}) (${list.length}).pdf`.replace(/[\\/:*?"<>|]/g, '_');
+  const filename = (
+    options?.filename || `Payslips (${month}) (${list.length}).pdf`
+  ).replace(/[\\/:*?"<>|]/g, '_');
   downloadPayslipPdf(pdf.output('blob'), filename);
   return { count: list.length };
 }

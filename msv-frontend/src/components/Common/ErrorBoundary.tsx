@@ -6,11 +6,14 @@ import { useErrorStore } from '../../store/errorStore';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  /** 경로가 바뀌면 막혀 있던 오류 화면을 걷어 다음 페이지를 연다 */
+  resetKey?: string;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  resetKey?: string;
 }
 
 class ErrorBoundaryClass extends Component<Props, State> {
@@ -18,15 +21,23 @@ class ErrorBoundaryClass extends Component<Props, State> {
     super(props);
     this.state = {
       hasError: false,
-      error: null
+      error: null,
+      resetKey: props.resetKey
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error
     };
+  }
+
+  static getDerivedStateFromProps(props: Props, state: State): Partial<State> | null {
+    if (props.resetKey !== state.resetKey) {
+      return { hasError: false, error: null, resetKey: props.resetKey };
+    }
+    return null;
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -79,9 +90,9 @@ class ErrorBoundaryClass extends Component<Props, State> {
 }
 
 // 함수형 컴포넌트로 래핑하여 사용하기 쉽게 만듦
-const ErrorBoundary: React.FC<Props> = ({ children, fallback }) => {
+const ErrorBoundary: React.FC<Props> = ({ children, fallback, resetKey }) => {
   return (
-    <ErrorBoundaryClass fallback={fallback}>
+    <ErrorBoundaryClass fallback={fallback} resetKey={resetKey}>
       {children}
     </ErrorBoundaryClass>
   );

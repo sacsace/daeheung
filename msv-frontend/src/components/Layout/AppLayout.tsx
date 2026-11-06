@@ -9,6 +9,7 @@ import { userUiPreferencesService } from '../../services/api';
 import { ensureI18nLanguage } from '../../locales/i18n';
 import { useMenuLoader, reloadMenusNow } from '../../hooks/useMenuLoader';
 import { MenuPermissionProvider } from '../../context/MenuPermissionContext';
+import ErrorBoundary from '../Common/ErrorBoundary';
 import { mvsPageShellSx, mvsWorkBoardPageBg, mvsPageContentMaxWidth } from '../../theme/mvsLayout';
 
 /** 서버 prefs의 ko가 클라이언트 영어 선택보다 늦게 도착할 때 UI 언어를 덮어쓰지 않음 */
@@ -142,64 +143,27 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   );
 
   useEffect(() => {
-    const checkMenuPermission = () => {
-      if (location.pathname === '/login') {
-        setHasAccess(true);
-        return;
-      }
-
-      if (user?.id && isPersonalAccountRoute(location.pathname)) {
-        setHasAccess(true);
-        return;
-      }
-
-      if (user?.id && isLegalPublicRoute(location.pathname)) {
-        setHasAccess(true);
-        return;
-      }
-
-      // admin/root는 메뉴 트리 누락·로드 실패로도 화면이 막히면 안 됨
-      if (isElevated) {
-        setHasAccess(true);
-        return;
-      }
-
-      if (location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')) {
-        setHasAccess(true);
-        return;
-      }
+    const decide = (): boolean | null => {
+      if (location.pathname === '/login') return true;
+      if (user?.id && isPersonalAccountRoute(location.pathname)) return true;
+      if (user?.id && isLegalPublicRoute(location.pathname)) return true;
+      if (isElevated) return true;
+      if (location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/')) return true;
 
       const menuId = findMenuByRoute(location.pathname);
-
-      // 메뉴 API 실패로 트리가 비어 있으면 “권한 없음”으로 오판하지 않음
       if (!menuId) {
-        if (menusLoading) {
-          setHasAccess(null);
-          return;
-        }
-        if (menusError || menus.length === 0) {
-          setHasAccess(null);
-          return;
-        }
-        setHasAccess(false);
-        return;
+        if (menusLoading || menusError || menus.length === 0) return null;
+        return false;
       }
-
-      setHasAccess(hasMenuPermission(menuId, 'view'));
+      return hasMenuPermission(menuId, 'view');
     };
 
-    if (menusLoading) {
-      setHasAccess(null);
-    } else if (isElevated) {
-      setHasAccess(true);
-    } else if (menus.length > 0) {
-      checkMenuPermission();
-    } else if (menusError) {
-      // 로드 실패: 차단 대신 재시도 UI (hasAccess null + menusError)
-      setHasAccess(null);
-    } else {
-      checkMenuPermission();
-    }
+    const next = decide();
+    setHasAccess((prev) => {
+      // 메뉴를 다시 읽는 동안 이미 연 화면을 지우지 않는다.
+      if (next === null && prev === true && menus.length > 0) return true;
+      return next;
+    });
   }, [
     location.pathname,
     menus,
@@ -494,7 +458,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   <CircularProgress size={36} />
                 </Box>
               ) : (
-                <MenuPermissionProvider>{children}</MenuPermissionProvider>
+                <MenuPermissionProvider>
+                  <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>
+                </MenuPermissionProvider>
               )}
             </Box>
           </Box>

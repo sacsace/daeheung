@@ -111,6 +111,8 @@ type Props = {
   /** PDF 캡처용 — 2열 레이아웃 강제 (스타일은 미리보기와 동일) */
   forPdf?: boolean;
   headerLayout?: PayslipHeaderLayout;
+  /** 있으면 급여 항목 대신 이 구성으로 같은 명세서 디자인을 그린다 */
+  documentView?: PayslipDocumentView;
 };
 
 const INR = 'en-IN';
@@ -406,7 +408,24 @@ function LedgerColumnHeader({ title, compact }: { title: string; compact?: boole
   );
 }
 
-type LedgerLine = { label: string; value: string; highlight?: boolean };
+export type LedgerLine = { label: string; value: string; highlight?: boolean };
+
+/** 급여 명세서와 같은 레이아웃에 다른 금액·항목을 넣을 때 사용 */
+export type PayslipDocumentView = {
+  headerStats?: { label: string; value: string }[];
+  fields?: Array<{
+    label: string;
+    value: unknown;
+    highlight?: boolean;
+    link?: boolean;
+    dateOnly?: boolean;
+  }>;
+  earningItems?: LedgerLine[];
+  deductionItems?: LedgerLine[];
+  grossPay?: number;
+  totalDeductions?: number;
+  netPay?: number;
+};
 
 function EarningsDeductionsTable({
   labels,
@@ -500,7 +519,8 @@ function PayslipHeader({
   companyContact,
   companyLogo,
   forPdf,
-  layout = 'standard'
+  layout = 'standard',
+  stats
 }: {
   labels: PayslipLabels;
   showTitle: boolean;
@@ -512,11 +532,15 @@ function PayslipHeader({
   companyLogo?: string;
   forPdf?: boolean;
   layout?: PayslipHeaderLayout;
+  stats?: { label: string; value: string }[];
 }) {
-  const periodStats = [
-    { label: labels.workingMonth, value: displayText(workingMonth) },
-    { label: labels.paidDays, value: displayText(paidDays) }
-  ].filter((item) => item.value);
+  const periodStats = (stats && stats.length > 0
+    ? stats
+    : [
+        { label: labels.workingMonth, value: displayText(workingMonth) },
+        { label: labels.paidDays, value: displayText(paidDays) }
+      ]
+  ).filter((item) => item.value);
   const logoSrc = String(companyLogo || '').trim();
   const showCompanyBlock = layout !== 'compact' && (companyName !== '—' || Boolean(logoSrc));
 
@@ -699,7 +723,8 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
     showTitle = true,
     wide = false,
     forPdf = false,
-    headerLayout = 'standard'
+    headerLayout = 'standard',
+    documentView
   },
   ref
 ) {
@@ -835,6 +860,7 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
           companyLogo={companyInfo?.logo}
           forPdf={forPdf}
           layout={headerLayout}
+          stats={documentView?.headerStats}
         />
 
         <Box sx={{ px: { xs: 2, sm: 2.5 }, pb: forPdf ? 1.5 : 2.5, pt: forPdf ? 1.5 : 2.5 }}>
@@ -851,6 +877,23 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
                 rowGap: 0
               }}
             >
+              {(documentView?.fields || [
+                { label: labels.workingMonth, value: row.working_month },
+              ]).length > 0 && documentView?.fields
+                ? documentView.fields.map((field) => (
+                    <EmpField
+                      key={field.label}
+                      compact={forPdf}
+                      label={field.label}
+                      value={field.value}
+                      highlight={field.highlight}
+                      link={field.link}
+                      dateOnly={field.dateOnly}
+                    />
+                  ))
+                : null}
+              {!documentView?.fields ? (
+              <>
               <EmpField compact={forPdf} label={labels.workingMonth} value={row.working_month} />
               <EmpField
                 compact={forPdf}
@@ -881,6 +924,8 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
               <EmpField compact={forPdf} label={labels.bank} value={row.bank_name} />
               <EmpField compact={forPdf} label={labels.account} value={row.bank_account} />
               <EmpField compact={forPdf} label={labels.ifsc} value={row.ifsc} />
+              </>
+              ) : null}
             </Box>
           </Box>
 
@@ -888,10 +933,10 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
           <SectionHeading compact={forPdf}>{labels.earningsAndDeductions}</SectionHeading>
           <EarningsDeductionsTable
             labels={labels}
-            earningItems={earningItems}
-            deductionItems={deductionItems}
-            grossPay={grossPay}
-            totalDeductions={totalDeductions}
+            earningItems={documentView?.earningItems ?? earningItems}
+            deductionItems={documentView?.deductionItems ?? deductionItems}
+            grossPay={documentView?.grossPay ?? grossPay}
+            totalDeductions={documentView?.totalDeductions ?? totalDeductions}
             forPdf={forPdf}
           />
 
@@ -930,7 +975,7 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
                 letterSpacing: '-0.02em'
               }}
             >
-              {money(netPay)}
+              {money(documentView?.netPay ?? netPay)}
             </Typography>
             <Typography
               sx={{
@@ -940,7 +985,7 @@ const PayslipContent = React.forwardRef<HTMLDivElement, Props>(function PayslipC
                 fontSize: forPdf ? '0.78rem' : undefined,
               }}
             >
-              {labels.amountInWords}: {inrAmountInWords(netPay)}
+              {labels.amountInWords}: {inrAmountInWords(documentView?.netPay ?? netPay)}
             </Typography>
           </Box>
 

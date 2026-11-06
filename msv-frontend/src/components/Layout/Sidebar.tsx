@@ -53,6 +53,7 @@ import {
   FolderSpecial,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
+import { prefetchRoute } from '../Common/LazyPage';
 import { useTranslation } from 'react-i18next';
 import { useStore, useMenuStore } from '../../store';
 import menuService, { type Menu } from '../../services/menuService';
@@ -759,6 +760,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           {isCompactItem ? (
             <Tooltip title={labelText} placement="right">
               <ListItemButton
+                onMouseEnter={() => prefetchRoute(menu.route)}
+                onFocus={() => prefetchRoute(menu.route)}
                 onClick={() => handleMenuClick(menu)}
                 sx={(theme) =>
                   menuItemButtonSx(
@@ -791,6 +794,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             </Tooltip>
           ) : (
             <ListItemButton
+              onMouseEnter={() => prefetchRoute(menu.route)}
+              onFocus={() => prefetchRoute(menu.route)}
               onClick={() => handleMenuClick(menu)}
               sx={(theme) =>
                 menuItemButtonSx(

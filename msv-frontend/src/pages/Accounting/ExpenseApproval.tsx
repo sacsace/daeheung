@@ -2576,10 +2576,21 @@ const ExpenseApproval: React.FC = () => {
   const isAuditUser = user?.role === 'audit';
   const canViewAllCompanies = isRootUser || isAuditUser;
   const hasTransferAccess = Boolean(user?.is_payment_officer) || isRootUser;
-  const resolveDefaultCompanyFilterId = useCallback((): number | '' => {
-    const userCompanyId = Number(user?.company_id);
-    return Number.isFinite(userCompanyId) && userCompanyId > 0 ? userCompanyId : '';
-  }, [user?.company_id]);
+  const resolveDefaultCompanyFilterId = useCallback(
+    (options: Array<{ id: number; name: string }> = []): number | '' => {
+      const minsub = options.find((company) => {
+        const name = stripCorporateSuffixFromFilename(company.name)
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .trim();
+        return name === 'minsub ventures' || name.startsWith('minsub ventures ');
+      });
+      if (minsub && minsub.id > 0) return minsub.id;
+      const userCompanyId = Number(user?.company_id);
+      return Number.isFinite(userCompanyId) && userCompanyId > 0 ? userCompanyId : '';
+    },
+    [user?.company_id]
+  );
   const [expenses, setExpenses] = useState<ExpenseApprovalItem[]>([]);
   const [, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -2616,27 +2627,29 @@ const ExpenseApproval: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState('');
   /** 상단 KPI 합산 기준 월 (YYYY-MM). 전표일(voucherDate) 우선, 없으면 작성일 */
   const [summaryMonth, setSummaryMonth] = useState(() => getTodayLocalYmd().slice(0, 7));
-  const [companyFilterId, setCompanyFilterId] = useState<number | ''>(() => {
-    const userCompanyId = Number(user?.company_id);
-    return Number.isFinite(userCompanyId) && userCompanyId > 0 ? userCompanyId : '';
-  });
-  const companyFilterInitializedRef = useRef(
-    typeof companyFilterId === 'number' && companyFilterId > 0
-  );
+  const [companyFilterId, setCompanyFilterId] = useState<number | ''>('');
+  /** 이번 화면에서 사용자가 회사를 고르기 전까지만 기본값(Minsub Ventures)을 넣는다. 새로고침하면 다시 초기화된다. */
+  const companyFilterInitializedRef = useRef(false);
   const [companyOptions, setCompanyOptions] = useState<Array<{ id: number; name: string }>>([]);
   /** root/audit: 필터 회사 → 열람 중인 문서 회사 → 로그인 회사. 일반 사용자: 로그인 회사 */
   const effectiveCompanyId = useMemo(() => {
     if (canViewAllCompanies) {
-      if (typeof companyFilterId === 'number' && companyFilterId > 0) return companyFilterId;
       const fromExpense = Number(selectedExpense?.companyId);
-      if (Number.isFinite(fromExpense) && fromExpense > 0) return fromExpense;
+      if (
+        (viewMode === 'view' || viewMode === 'edit') &&
+        Number.isFinite(fromExpense) &&
+        fromExpense > 0
+      ) {
+        return fromExpense;
+      }
+      if (typeof companyFilterId === 'number' && companyFilterId > 0) return companyFilterId;
       // 전체 회사 선택 시에도 작성·초안은 로그인 회사 기준으로 진행
       const fromUser = Number(user?.company_id);
       return Number.isFinite(fromUser) && fromUser > 0 ? fromUser : 0;
     }
     const fromUser = Number(user?.company_id);
     return Number.isFinite(fromUser) && fromUser > 0 ? fromUser : 0;
-  }, [canViewAllCompanies, user?.company_id, companyFilterId, selectedExpense?.companyId]);
+  }, [canViewAllCompanies, user?.company_id, companyFilterId, selectedExpense?.companyId, viewMode]);
   const [listSortKey, setListSortKey] = useState<ExpenseListSortKey | null>(null);
   const [listSortDir, setListSortDir] = useState<'asc' | 'desc'>('asc');
   const [listViewMode, setListViewMode] = useState<'page' | 'all'>('page');
@@ -3662,13 +3675,12 @@ const ExpenseApproval: React.FC = () => {
 
   useEffect(() => {
     if (!canViewAllCompanies || companyFilterInitializedRef.current) return;
-    const next = resolveDefaultCompanyFilterId();
+    if (companyOptions.length === 0) return;
+    const next = resolveDefaultCompanyFilterId(companyOptions);
     if (!next) return;
     companyFilterInitializedRef.current = true;
-    if (companyFilterId === '') {
-      setCompanyFilterId(next);
-    }
-  }, [canViewAllCompanies, resolveDefaultCompanyFilterId, companyFilterId]);
+    setCompanyFilterId(next);
+  }, [canViewAllCompanies, companyOptions, resolveDefaultCompanyFilterId]);
 
   useEffect(() => {
     if (!user) {
@@ -3922,11 +3934,8 @@ const ExpenseApproval: React.FC = () => {
         setListSortKey('createdAt');
         setListSortDir('desc');
       }
-      if (tab === 'transfer' && isRootUser && companyFilterId === '') {
-        setCompanyFilterId(resolveDefaultCompanyFilterId());
-      }
     }
-  }, [searchParams, hasTransferAccess, isRootUser, resolveDefaultCompanyFilterId, companyFilterId]);
+  }, [searchParams, hasTransferAccess]);
 
   const handleRootCompanyChange = useCallback(
     (next: number | '') => {
@@ -4348,9 +4357,6 @@ const ExpenseApproval: React.FC = () => {
     );
     setDraftId(expense.id);
     draftIdReadyRef.current = expense.id;
-    if (isRootUser && expense.companyId) {
-      setCompanyFilterId(Number(expense.companyId));
-    }
     setHeaderStatusBanner('');
     lastAutoSavedJsonRef.current = '';
     setAutoSaveHint('');
@@ -5672,9 +5678,6 @@ const ExpenseApproval: React.FC = () => {
         setTransferStatusFilters(defaultTransferStatusFiltersForTab());
         setListSortKey('createdAt');
         setListSortDir('desc');
-        if (isRootUser) {
-          setCompanyFilterId(resolveDefaultCompanyFilterId());
-        }
       }
     } catch (err: any) {
       setError(
@@ -11280,13 +11283,6 @@ const ExpenseApproval: React.FC = () => {
             } else {
               setListSortKey(null);
               setListSortDir('asc');
-            }
-            if (value === 'transfer' && isRootUser && companyFilterId === '') {
-              const nextCompanyId = resolveDefaultCompanyFilterId();
-              if (nextCompanyId) {
-                setExpenses([]);
-                setCompanyFilterId(nextCompanyId);
-              }
             }
           }}
           sx={mvsMainTabsSx}

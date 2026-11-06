@@ -577,6 +577,7 @@ export default {
       salaryApprover: 'Approver',
       salaryApproverHint: 'A changed amount applies only after the selected approver accepts it.',
       salaryApproverRequired: 'Select an approver for this salary change.',
+      salaryRootDirectHint: 'Root saves the new salary immediately, without approval.',
       salaryChangeRequested: 'User details were saved. The salary change applies after approval.',
       salaryApproval: 'Salary change approval',
       salaryApprovalEmpty: 'No salary changes are waiting for approval.',

@@ -572,6 +572,7 @@ export default {
       salaryApprover: '승인 담당',
       salaryApproverHint: '금액을 바꾸면 선택한 담당자가 승인한 뒤에 반영됩니다.',
       salaryApproverRequired: '급여 변경 승인 담당자를 선택해주세요.',
+      salaryRootDirectHint: 'root는 승인 없이 저장하면 바로 반영됩니다.',
       salaryChangeRequested: '사용자 정보를 저장했습니다. 급여 변경은 담당자 승인 후 반영됩니다.',
       salaryApproval: '급여 변경 승인',
       salaryApprovalEmpty: '승인 대기 중인 급여 변경이 없습니다.',

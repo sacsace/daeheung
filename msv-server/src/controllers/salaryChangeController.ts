@@ -106,6 +106,30 @@ export async function recordInitialSalary(user: {
   });
 }
 
+export async function recordApprovedSalaryChange(input: {
+  user: { id: number; tenant_id: number; company_id: number; salary?: unknown };
+  actorId: number;
+  nextSalary: number | null;
+}) {
+  const previous = normalizeSalaryAmount(input.user.salary);
+  await (SalaryChangeRequest as any).update(
+    { status: 'cancelled', decided_at: new Date(), decided_by: input.actorId },
+    { where: { user_id: input.user.id, status: 'pending' } }
+  );
+  return (SalaryChangeRequest as any).create({
+    tenant_id: input.user.tenant_id,
+    company_id: input.user.company_id,
+    user_id: input.user.id,
+    previous_salary: previous,
+    requested_salary: input.nextSalary,
+    status: 'approved',
+    requested_by: input.actorId,
+    approver_id: input.actorId,
+    decided_by: input.actorId,
+    decided_at: new Date(),
+  });
+}
+
 export async function queueSalaryChange(input: {
   user: { id: number; tenant_id: number; company_id: number; salary?: unknown };
   actorId: number;

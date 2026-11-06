@@ -1532,7 +1532,7 @@ const UserManagement: React.FC = () => {
     salaryUnlocked && salaryAmountsDiffer(formData.salary, salaryBaseline);
 
   useEffect(() => {
-    if (viewMode !== 'edit' || !salaryDraftChanged) return;
+    if (viewMode !== 'edit' || !salaryDraftChanged || user?.role === 'root') return;
     const companyId = Number(
       (formData as { company_id?: number }).company_id || editingUser?.company_id || user?.company_id
     );
@@ -1549,7 +1549,7 @@ const UserManagement: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, salaryDraftChanged, formData, editingUser?.company_id, user?.company_id]);
+  }, [viewMode, salaryDraftChanged, formData, editingUser?.company_id, user?.company_id, user?.role]);
 
   useEffect(() => {
     if (viewMode !== 'list') return;
@@ -1627,6 +1627,8 @@ const UserManagement: React.FC = () => {
         if (!salaryAmountsDiffer(nextSalary, baseline)) {
           // 잠금 해제만 하고 값을 바꾸지 않았으면 급여 미전송 (실수 삭제/재저장 방지)
           delete submitData.salary;
+        } else if (user?.role === 'root') {
+          submitData.currentPassword = salaryPasswordForSubmit;
         } else {
           if (!salaryApproverId) {
             setError(t('userManagement.salaryApproverRequired'));
@@ -3272,7 +3274,9 @@ const UserManagement: React.FC = () => {
                           disabled={!salaryUnlocked}
                           helperText={
                             salaryDraftChanged
-                              ? t('userManagement.salaryApproverHint')
+                              ? user?.role === 'root'
+                                ? t('userManagement.salaryRootDirectHint')
+                                : t('userManagement.salaryApproverHint')
                               : salaryUnlocked
                                 ? undefined
                                 : t('userManagement.salaryUnlockHint')
@@ -3316,7 +3320,7 @@ const UserManagement: React.FC = () => {
                             ),
                           }}
                         />
-                        {salaryDraftChanged ? (
+                        {salaryDraftChanged && user?.role !== 'root' ? (
                           <TextField
                             select
                             fullWidth

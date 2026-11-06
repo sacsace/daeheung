@@ -10,6 +10,7 @@ import {
   listSalaryApprovers,
   listSalaryHistory,
   queueSalaryChange,
+  recordApprovedSalaryChange,
   recordInitialSalary,
   salariesEqual,
 } from '../controllers/salaryChangeController';
@@ -1800,29 +1801,43 @@ router.put(
       }
       const nextSalary = salary === '' ? null : parseSalaryInput(salary);
       if (!salariesEqual(user.salary, nextSalary)) {
-        const approverId = Number((req.body as any).salary_approver_id);
         const actorId = Number((req as any).user.id);
-        const targetCompanyId = Number(user.company_id);
-        if (!Number.isFinite(approverId) || approverId <= 0) {
-          return res.status(400).json({
-            success: false,
-            message: '급여 변경 승인 담당자를 선택해주세요.',
+        if (currentUserRole === 'root') {
+          updateData.salary = nextSalary;
+          await recordApprovedSalaryChange({
+            user,
+            actorId,
+            nextSalary,
           });
-        }
-        const eligible = await isEligibleSalaryApprover(approverId, targetCompanyId, Number(user.tenant_id), actorId);
-        if (!eligible) {
-          return res.status(400).json({
-            success: false,
-            message: '급여 변경 승인 담당자로 지정할 수 없는 사용자입니다.',
+        } else {
+          const approverId = Number((req.body as any).salary_approver_id);
+          const targetCompanyId = Number(user.company_id);
+          if (!Number.isFinite(approverId) || approverId <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: '급여 변경 승인 담당자를 선택해주세요.',
+            });
+          }
+          const eligible = await isEligibleSalaryApprover(
+            approverId,
+            targetCompanyId,
+            Number(user.tenant_id),
+            actorId
+          );
+          if (!eligible) {
+            return res.status(400).json({
+              success: false,
+              message: '급여 변경 승인 담당자로 지정할 수 없는 사용자입니다.',
+            });
+          }
+          await queueSalaryChange({
+            user,
+            actorId,
+            nextSalary,
+            approverId,
           });
+          salaryChangePending = true;
         }
-        await queueSalaryChange({
-          user,
-          actorId,
-          nextSalary,
-          approverId,
-        });
-        salaryChangePending = true;
       }
     }
     if (bank_name !== undefined) updateData.bank_name = bank_name || null;

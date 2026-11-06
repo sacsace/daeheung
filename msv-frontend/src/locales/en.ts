@@ -1649,6 +1649,7 @@ export default {
         statusRegistered: 'Registered',
         statusPaid: 'Paid',
         approvalNeeded: 'Approval required',
+        approvalRootBypass: 'Approval optional',
         approvalPending: 'In approval',
         approvalApproved: 'Approved',
         approvalRejected: 'Rejected',
@@ -2070,6 +2071,8 @@ export default {
       },
       approval: {
         statusRequired: 'Approval required',
+        statusRootBypass: 'Approval optional',
+        rootBypassHint: 'Root can finalize payroll without approval.',
         statusInProgress: 'Approval in progress',
         statusInProgressWithApprover: 'In progress · {{name}}',
         statusApproved: 'Approved',

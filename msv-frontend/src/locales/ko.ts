@@ -1767,6 +1767,7 @@ export default {
         statusRegistered: '등록',
         statusPaid: '지급 완료',
         approvalNeeded: '결재 필요',
+        approvalRootBypass: '결재 생략 가능',
         approvalPending: '결재 진행 중',
         approvalApproved: '결재 승인',
         approvalRejected: '결재 반려',
@@ -2188,6 +2189,8 @@ export default {
       },
       approval: {
         statusRequired: '결재 필요',
+        statusRootBypass: '결재 생략 가능',
+        rootBypassHint: 'root는 결재 없이 「급여 생성 완료」를 진행할 수 있습니다.',
         statusInProgress: '결재 진행중',
         statusInProgressWithApprover: '결재 진행중 · {{name}}',
         statusApproved: '결재 승인',

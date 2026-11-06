@@ -1256,23 +1256,25 @@ export const completePayrollPeriod = async (req: RequestWithUser, res: Response)
     }
     const scope = requirePayrollCompanyScope(req, res);
     if (!scope) return;
-    const { tenant_id, company_id, user_id } = scope;
+    const { tenant_id, company_id, user_id, userRole } = scope;
 
-    const approval = await findPayrollPeriodApproval(tenant_id, company_id, payroll_period);
-    if (!approval || String(approval.status) !== 'approved') {
-      const status = approval ? String(approval.status) : 'none';
-      return res.status(400).json({
-        success: false,
-        message:
-          status === 'submitted' || status === 'in_review'
-            ? '결재가 진행 중입니다. 승인 완료 후 급여 생성 완료를 진행하세요.'
-            : '급여 생성 완료 전에 결재 승인이 필요합니다. 먼저 결재를 요청하세요.',
-        data: {
-          payroll_period,
-          approval_status: status,
-          approval_id: approval?.id ?? null,
-        },
-      });
+    if (userRole !== 'root') {
+      const approval = await findPayrollPeriodApproval(tenant_id, company_id, payroll_period);
+      if (!approval || String(approval.status) !== 'approved') {
+        const status = approval ? String(approval.status) : 'none';
+        return res.status(400).json({
+          success: false,
+          message:
+            status === 'submitted' || status === 'in_review'
+              ? '결재가 진행 중입니다. 승인 완료 후 급여 생성 완료를 진행하세요.'
+              : '급여 생성 완료 전에 결재 승인이 필요합니다. 먼저 결재를 요청하세요.',
+          data: {
+            payroll_period,
+            approval_status: status,
+            approval_id: approval?.id ?? null,
+          },
+        });
+      }
     }
 
     const [row, created] = await (PayrollPeriodLock as any).findOrCreate({

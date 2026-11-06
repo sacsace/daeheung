@@ -366,18 +366,20 @@ export const registerPayrollBonuses = async (req: RequestWithUser, res: Response
     }
 
     if (markPaid) {
-      const approval = await findBonusApproval(
-        tenantId,
-        companyId,
-        fy.label,
-        installmentsPerYear,
-        installment
-      );
-      if (!approval || String(approval.status) !== 'approved') {
-        return res.status(400).json({
-          success: false,
-          message: '결재 승인 후에 지급 완료할 수 있습니다.',
-        });
+      if (userRole !== 'root') {
+        const approval = await findBonusApproval(
+          tenantId,
+          companyId,
+          fy.label,
+          installmentsPerYear,
+          installment
+        );
+        if (!approval || String(approval.status) !== 'approved') {
+          return res.status(400).json({
+            success: false,
+            message: '결재 승인 후에 지급 완료할 수 있습니다.',
+          });
+        }
       }
       const existing = await (PayrollBonus as any).findAll({
         where: {
@@ -910,7 +912,7 @@ async function readBonusRequest(req: RequestWithUser, res: Response) {
   const employeeIds = Array.isArray(req.body?.employee_ids)
     ? req.body.employee_ids.map((id: unknown) => Number(id)).filter((id: number) => id > 0)
     : [];
-  return { tenantId, companyId, userId, fy, installmentsPerYear, installment, employeeIds };
+  return { tenantId, companyId, userId, userRole, fy, installmentsPerYear, installment, employeeIds };
 }
 
 export const downloadPayrollBonusStatement = async (req: RequestWithUser, res: Response) => {
@@ -972,7 +974,7 @@ export const sendPayrollBonusStatements = async (req: RequestWithUser, res: Resp
       installmentsPerYear,
       installment
     );
-    if (!approval || String(approval.status) !== 'approved') {
+    if (scope.userRole !== 'root' && (!approval || String(approval.status) !== 'approved')) {
       return res.status(400).json({
         success: false,
         message: '결재 승인 후에 보너스 명세서를 보낼 수 있습니다.',

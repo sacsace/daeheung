@@ -141,6 +141,7 @@ export default function PayrollBonusPanel({
   const { t } = useTranslation();
   const theme = useTheme();
   const myId = useStore((s) => (s.user?.id != null ? Number(s.user.id) : null));
+  const isRoot = useStore((s) => s.user?.role === 'root');
   const { dialogState, showConfirm, handleConfirm, handleCancel } = useConfirmDialog();
   const initialYears = useMemo(() => buildFiscalYears(), []);
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>(initialYears);
@@ -229,6 +230,7 @@ export default function PayrollBonusPanel({
   const approvalStatus = String(approval?.status || '');
   const editLocked = ['submitted', 'in_review', 'approved'].includes(approvalStatus);
   const approved = approvalStatus === 'approved';
+  const paymentUnlocked = isRoot || approved;
   const savedRows = rows.filter((row) => row.status);
   const selectedSaved = rows.filter((row) => selected.includes(row.employee_id) && row.status);
 
@@ -248,8 +250,14 @@ export default function PayrollBonusPanel({
     if (approvalStatus === 'rejected' || approvalStatus === 'cancelled') {
       return { label: t('payrollManagement.bonusRegister.approvalRejected'), color: 'error' as const };
     }
+    if (isRoot) {
+      return {
+        label: t('payrollManagement.bonusRegister.approvalRootBypass'),
+        color: 'info' as const,
+      };
+    }
     return { label: t('payrollManagement.bonusRegister.approvalNeeded'), color: 'default' as const };
-  }, [approval?.currentApprover?.username, approvalStatus, t]);
+  }, [approval?.currentApprover?.username, approvalStatus, isRoot, t]);
 
   function bonusBody<T extends object>(extra: T) {
     return {
@@ -714,10 +722,10 @@ export default function PayrollBonusPanel({
             <Button
               size="small"
               variant="outlined"
-              disabled={!canWrite || saving || !approved || savedRows.length === 0}
+              disabled={!canWrite || saving || !paymentUnlocked || savedRows.length === 0}
               onClick={openBank}
               sx={mvsBodyOutlinedBtnSx}
-              title={!approved ? t('payrollManagement.bonusRegister.needApproval') : ''}
+              title={!paymentUnlocked ? t('payrollManagement.bonusRegister.needApproval') : ''}
             >
               {t('payrollManagement.bonusRegister.bankBulk')}
             </Button>
@@ -733,10 +741,10 @@ export default function PayrollBonusPanel({
             <Button
               size="small"
               variant="outlined"
-              disabled={!canWrite || saving || !approved || selectedSaved.length === 0}
+              disabled={!canWrite || saving || !paymentUnlocked || selectedSaved.length === 0}
               onClick={confirmSend}
               sx={mvsBodyOutlinedBtnSx}
-              title={!approved ? t('payrollManagement.bonusRegister.needApproval') : ''}
+              title={!paymentUnlocked ? t('payrollManagement.bonusRegister.needApproval') : ''}
             >
               {t('payrollManagement.bonusRegister.sendMail')}
             </Button>
@@ -752,10 +760,10 @@ export default function PayrollBonusPanel({
             <Button
               size="small"
               variant="outlined"
-              disabled={!canWrite || saving || !approved || selectedSaved.length === 0}
+              disabled={!canWrite || saving || !paymentUnlocked || selectedSaved.length === 0}
               onClick={() => void save(true)}
               sx={mvsBodyOutlinedBtnSx}
-              title={!approved ? t('payrollManagement.bonusRegister.needApproval') : ''}
+              title={!paymentUnlocked ? t('payrollManagement.bonusRegister.needApproval') : ''}
             >
               {t('payrollManagement.bonusRegister.markPaid')}
             </Button>

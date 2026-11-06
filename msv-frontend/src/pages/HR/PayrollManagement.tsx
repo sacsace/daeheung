@@ -727,7 +727,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
       setCompleteDialogOpen(false);
       return;
     }
-    if (String(periodApproval?.status || '') !== 'approved') {
+    if (!isRoot && String(periodApproval?.status || '') !== 'approved') {
       setError(t('payrollManagement.errors.approvalRequired'));
       setCompleteDialogOpen(false);
       return;
@@ -1030,6 +1030,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
 
   const approvalStatus = String(periodApproval?.status || '');
   const payrollApprovalApproved = approvalStatus === 'approved';
+  const payrollApprovalSatisfied = isRoot || payrollApprovalApproved;
   const payrollApprovalInProgress =
     approvalStatus === 'submitted' || approvalStatus === 'in_review';
   const payrollApprovalRejected = approvalStatus === 'rejected' || approvalStatus === 'cancelled';
@@ -1057,6 +1058,12 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
         color: 'error' as const,
       };
     }
+    if (isRoot) {
+      return {
+        label: t('payrollManagement.approval.statusRootBypass'),
+        color: 'info' as const,
+      };
+    }
     return {
       label: t('payrollManagement.approval.statusRequired'),
       color: 'default' as const,
@@ -1069,6 +1076,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
     payrollApprovalInProgress,
     payrollApprovalRejected,
     periodApproval?.currentApprover?.username,
+    isRoot,
     t,
   ]);
 
@@ -1110,7 +1118,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
     payrollRecordsForSelectedMonth.length === 0 ||
     selectedPeriodPayrollComplete ||
     isFuturePayMonth ||
-    !payrollApprovalApproved;
+    !payrollApprovalSatisfied;
   const completePayrollToolbarTooltip = completePayrollToolbarDisabled
     ? completing || menuFlags.menusLoading
       ? ''
@@ -1124,7 +1132,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
             ? t('payrollManagement.errors.futurePayMonthNotAllowed')
             : selectedPeriodPayrollComplete
               ? t('payrollManagement.errors.periodAlreadyFinalized')
-              : !payrollApprovalApproved
+              : !payrollApprovalSatisfied
                 ? payrollApprovalInProgress
                   ? t('payrollManagement.approval.waitForApproval')
                   : t('payrollManagement.errors.approvalRequired')
@@ -1139,7 +1147,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
     payrollRecordsForSelectedMonth.length === 0 ||
     lockedPeriods.has(periodKey) ||
     isFuturePayMonth ||
-    !payrollApprovalApproved;
+    !payrollApprovalSatisfied;
   const completeDialogConfirmTooltip = completeDialogConfirmDisabled
     ? completing || menuFlags.menusLoading
       ? ''
@@ -1153,7 +1161,7 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
             ? t('payrollManagement.errors.futurePayMonthNotAllowed')
             : lockedPeriods.has(periodKey)
               ? t('payrollManagement.errors.periodAlreadyFinalized')
-              : !payrollApprovalApproved
+              : !payrollApprovalSatisfied
                 ? payrollApprovalInProgress
                   ? t('payrollManagement.approval.waitForApproval')
                   : t('payrollManagement.errors.approvalRequired')
@@ -2042,9 +2050,14 @@ const PayrollManagement: React.FC<PayrollManagementProps> = ({ payslipSendOnly =
             <Alert severity="warning" sx={{ mb: 1.5 }}>
               {t('payrollManagement.dialog.completeLockWarning')}
             </Alert>
-            {!payrollApprovalApproved && (
+            {!payrollApprovalSatisfied && (
               <Alert severity="info" sx={{ mb: 1.5 }}>
                 {t('payrollManagement.errors.approvalRequired')}
+              </Alert>
+            )}
+            {isRoot && !payrollApprovalApproved && (
+              <Alert severity="info" sx={{ mb: 1.5 }}>
+                {t('payrollManagement.approval.rootBypassHint')}
               </Alert>
             )}
             <Typography variant="body2" color="text.secondary">

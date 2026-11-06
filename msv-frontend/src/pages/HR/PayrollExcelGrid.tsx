@@ -774,6 +774,7 @@ const PayrollExcelGrid: React.FC<Props> = ({
 
   const ratioSum = ratioDraft.parts.reduce((s, p) => s + p.pct, 0);
   const ratioSumOk = Math.abs(ratioSum - 100) < 0.05;
+  const monthStructureLocked = Boolean(payrollMonth && lockedPeriods.has(payrollMonth));
 
   const PAYROLL_ROW_HEIGHT = 36;
   const PAYROLL_HEADER_HEIGHT = 48;
@@ -811,7 +812,7 @@ const PayrollExcelGrid: React.FC<Props> = ({
           variant="outlined"
           startIcon={<AddIcon fontSize="small" />}
           onClick={openAddColumnDialog}
-          disabled={!allowCellEdit}
+          disabled={!allowCellEdit || monthStructureLocked}
           sx={mvsBodyOutlinedBtnSx}
         >
           {t('payrollManagement.actions.addColumn')}
@@ -821,7 +822,7 @@ const PayrollExcelGrid: React.FC<Props> = ({
           variant="outlined"
           startIcon={<ViewColumnIcon fontSize="small" />}
           onClick={() => setManageColumnsOpen(true)}
-          disabled={prefs.customColumns.length === 0}
+          disabled={prefs.customColumns.length === 0 || monthStructureLocked}
           sx={mvsBodyOutlinedBtnSx}
         >
           {t('payrollManagement.actions.manageCustomColumns')}
@@ -831,6 +832,7 @@ const PayrollExcelGrid: React.FC<Props> = ({
           variant="outlined"
           startIcon={<ReorderIcon fontSize="small" />}
           onClick={() => setOrderOpen(true)}
+          disabled={monthStructureLocked}
           sx={mvsBodyOutlinedBtnSx}
         >
           {t('payrollManagement.actions.reorderColumns')}
@@ -840,7 +842,7 @@ const PayrollExcelGrid: React.FC<Props> = ({
           variant={allowConstantsEdit ? 'contained' : 'outlined'}
           startIcon={<PercentIcon fontSize="small" />}
           onClick={openRatiosDialog}
-          disabled={!allowCellEdit}
+          disabled={!allowCellEdit || monthStructureLocked}
           sx={mvsBodyOutlinedBtnSx}
         >
           {t('payrollManagement.actions.editConstants')}

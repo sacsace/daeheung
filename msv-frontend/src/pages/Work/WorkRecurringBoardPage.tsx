@@ -780,6 +780,18 @@ const WorkRecurringBoardPage: React.FC<{ board: BoardProp }> = ({ board }) => {
     return null;
   };
 
+  const localizeRecurringError = (data?: { code?: string; message?: string }) => {
+    if (data?.code === 'NOT_APPLICABLE_FORBIDDEN') return tr('errors.notApplicableForbidden');
+    const message = String(data?.message || '');
+    if (
+      message === '해당 없음 처리는 소유자만 할 수 있습니다.' ||
+      message === '해당 없음 처리는 소유자 또는 담당자만 할 수 있습니다.'
+    ) {
+      return tr('errors.notApplicableForbidden');
+    }
+    return message || tr('errors.saveFailed');
+  };
+
   const updateInstanceStatus = async (instance: InstanceRow, status: string) => {
     if (saving) return;
     const blocked = statusBlockedReason(instance, status);
@@ -791,15 +803,15 @@ const WorkRecurringBoardPage: React.FC<{ board: BoardProp }> = ({ board }) => {
     try {
       const res = await workBoardService.updateRecurringInstance(board.id, instance.id, { status });
       if (!res?.success) {
-        showWarningPopup(res?.message || tr('errors.saveFailed'), t('workBoards.title'));
+        showWarningPopup(localizeRecurringError(res), t('workBoards.title'));
         return;
       }
       applyInstanceToState(res.data as InstanceRow);
       showSuccessToast(tr('success.statusUpdated'));
       await loadChecklist(period);
     } catch (e: any) {
-      const msg = e?.response?.data?.message;
-      if (msg) showWarningPopup(String(msg), t('workBoards.title'));
+      const data = e?.response?.data;
+      if (data?.code || data?.message) showWarningPopup(localizeRecurringError(data), t('workBoards.title'));
       else showErrorPopup(e, t('workBoards.title'));
     } finally {
       setSaving(false);

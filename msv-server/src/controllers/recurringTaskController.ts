@@ -1503,7 +1503,7 @@ export const updateRecurringInstance = async (req: RequestWithUser, res: Respons
     });
     if (!row) return res.status(404).json({ success: false, message: '업무 인스턴스를 찾을 수 없습니다.' });
 
-    const { ok, manage, isReviewer } = await canEditInstance(req.user!, loaded.member, row);
+    const { ok, manage, isAssignee, isReviewer } = await canEditInstance(req.user!, loaded.member, row);
     if (!ok) {
       return res.status(403).json({ success: false, message: '이 업무를 변경할 권한이 없습니다.' });
     }
@@ -1520,8 +1520,26 @@ export const updateRecurringInstance = async (req: RequestWithUser, res: Respons
       if (status === 'VERIFIED' && !manage && !isReviewer) {
         return res.status(403).json({ success: false, message: '검증은 검토자 또는 소유자만 할 수 있습니다.' });
       }
-      if (status === 'NOT_APPLICABLE' && !manage) {
-        return res.status(403).json({ success: false, message: '해당 없음 처리는 소유자만 할 수 있습니다.' });
+      if (status === 'NOT_APPLICABLE' && !manage && !isAssignee) {
+        const assignment = await RecurringTaskAssignment.findOne({
+          where: {
+            board_id: boardId,
+            customer_id: row.customer_id,
+            template_id: row.template_id,
+            is_active: true,
+          },
+          attributes: ['assigned_user_id'],
+        });
+        const assignedFromTask =
+          assignment?.assigned_user_id != null &&
+          Number(assignment.assigned_user_id) === Number(req.user!.id);
+        if (!assignedFromTask) {
+          return res.status(403).json({
+            success: false,
+            code: 'NOT_APPLICABLE_FORBIDDEN',
+            message: '해당 없음 처리는 소유자 또는 담당자만 할 수 있습니다.',
+          });
+        }
       }
       // 검증 필수: 완료 → 검증 순서
       if (status === 'VERIFIED' && template?.requires_verification) {

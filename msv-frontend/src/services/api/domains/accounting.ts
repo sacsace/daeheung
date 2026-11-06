@@ -902,15 +902,21 @@ export const payrollService = {
     return response.data;
   },
 
-  sendPayrollBonusStatements: async (data: {
-    company_id?: number;
-    fiscal_year: string;
-    installments_per_year: number;
-    installment: number;
-    employee_ids: number[];
-    statements?: Array<{ employee_id: number; pdf_base64: string }>;
-  }) => {
-    const response = await api.post('/hr/payroll-bonuses/send', data);
+  sendPayrollBonusStatements: async (
+    data: {
+      company_id?: number;
+      fiscal_year: string;
+      installments_per_year: number;
+      installment: number;
+      employee_ids: number[];
+      statements?: Array<{ employee_id: number; pdf_base64: string }>;
+    },
+    options?: { skipErrorPopup?: boolean; timeout?: number }
+  ) => {
+    const response = await api.post('/hr/payroll-bonuses/send', data, {
+      timeout: options?.timeout ?? 300000,
+      headers: options?.skipErrorPopup ? { 'x-skip-error-popup': 'true' } : undefined,
+    });
     return response.data;
   },
 

@@ -12,6 +12,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
   MenuItem,
   Table,
   TableBody,
@@ -168,6 +169,13 @@ export default function PayrollBonusPanel({
   const [statementRow, setStatementRow] = useState<BonusRow | null>(null);
   const [statementCompany, setStatementCompany] = useState<PayslipCompanyInfo | null>(null);
   const [statementDownloading, setStatementDownloading] = useState(false);
+  const [mailProgress, setMailProgress] = useState<{
+    open: boolean;
+    phase: 'prepare' | 'send';
+    done: number;
+    total: number;
+    name: string;
+  }>({ open: false, phase: 'prepare', done: 0, total: 0, name: '' });
 
   const currentInstallment = installments === 1 ? 1 : installment;
 
@@ -518,33 +526,101 @@ export default function PayrollBonusPanel({
 
   async function sendStatements() {
     if (typeof companyId !== 'number' || selectedSaved.length === 0) return;
+    const targets = [...selectedSaved];
+    const total = targets.length;
     setSaving(true);
     setError(null);
+    setMailProgress({ open: true, phase: 'prepare', done: 0, total, name: '' });
+    let sent = 0;
+    let failed = 0;
+    let firstError = '';
     try {
       const companyInfo = await loadBonusCompanyInfo(companyId);
-      const statements: Array<{ employee_id: number; pdf_base64: string }> = [];
-      for (const row of selectedSaved) {
-        const blob = await generatePayslipPdfBlob(bonusStatementRow(row, fiscalYear), companyInfo, {
-          labels: BONUS_STATEMENT_LABELS,
-          headerLayout: 'standard',
-          companyId,
-          purpose: 'email',
-          documentView: bonusStatementView(row, fiscalYear, currentInstallment, installments),
+      for (let index = 0; index < targets.length; index += 1) {
+        const row = targets[index];
+        setMailProgress({
+          open: true,
+          phase: 'prepare',
+          done: index,
+          total,
+          name: row.employee_name,
         });
-        statements.push({
-          employee_id: row.employee_id,
-          pdf_base64: await payslipBlobToBase64(blob),
+        let pdfBase64 = '';
+        try {
+          const blob = await generatePayslipPdfBlob(bonusStatementRow(row, fiscalYear), companyInfo, {
+            labels: BONUS_STATEMENT_LABELS,
+            headerLayout: 'standard',
+            companyId,
+            purpose: 'email',
+            documentView: bonusStatementView(row, fiscalYear, currentInstallment, installments),
+          });
+          pdfBase64 = await payslipBlobToBase64(blob);
+        } catch (prepErr: any) {
+          failed += 1;
+          if (!firstError) {
+            firstError = String(prepErr?.message || t('payrollManagement.bonusRegister.saveFailed'));
+          }
+          setMailProgress({
+            open: true,
+            phase: 'prepare',
+            done: index + 1,
+            total,
+            name: row.employee_name,
+          });
+          continue;
+        }
+
+        setMailProgress({
+          open: true,
+          phase: 'send',
+          done: index,
+          total,
+          name: row.employee_name,
+        });
+        try {
+          const res = await payrollService.sendPayrollBonusStatements(
+            bonusBody({
+              employee_ids: [row.employee_id],
+              statements: [{ employee_id: row.employee_id, pdf_base64: pdfBase64 }],
+            }),
+            { skipErrorPopup: true, timeout: 180000 }
+          );
+          const batchSent = Number(res?.data?.sent || 0);
+          const batchFailed = Array.isArray(res?.data?.failed) ? res.data.failed.length : 0;
+          sent += batchSent;
+          failed += batchFailed;
+          if (batchFailed > 0 && !firstError) {
+            const detail = res?.data?.failed?.[0]?.message;
+            firstError = String(detail || res?.message || '').trim();
+          }
+        } catch (err: any) {
+          failed += 1;
+          if (!firstError) {
+            const raw = String(err?.response?.data?.message || err?.message || '');
+            const timedOut = err?.code === 'ECONNABORTED' || /timeout/i.test(raw);
+            const noResponse =
+              !err?.response && /failed to fetch|network error|load failed/i.test(raw);
+            firstError = timedOut
+              ? t('payrollManagement.bonusRegister.mailTimeout')
+              : noResponse
+                ? t('payrollManagement.bonusRegister.mailNetwork')
+                : raw.trim() || t('payrollManagement.bonusRegister.mailNetwork');
+          }
+        }
+        setMailProgress({
+          open: true,
+          phase: 'send',
+          done: index + 1,
+          total,
+          name: row.employee_name,
         });
       }
-      const res = await payrollService.sendPayrollBonusStatements(
-        bonusBody({
-          employee_ids: selectedSaved.map((row) => row.employee_id),
-          statements,
-        })
-      );
-      const sent = Number(res?.data?.sent || 0);
-      const failed = Array.isArray(res?.data?.failed) ? res.data.failed.length : 0;
+
       if (failed > 0) {
+        setError(
+          firstError ||
+            t('payrollManagement.bonusRegister.mailPartial', { count: sent, failed })
+        );
         showErrorPopup(
           t('payrollManagement.bonusRegister.mailPartial', { count: sent, failed })
         );
@@ -552,8 +628,15 @@ export default function PayrollBonusPanel({
         showSuccessPopup(t('payrollManagement.bonusRegister.mailSent', { count: sent }));
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || t('payrollManagement.bonusRegister.saveFailed'));
+      const raw = String(err?.response?.data?.message || err?.message || '');
+      const timedOut = err?.code === 'ECONNABORTED' || /timeout/i.test(raw);
+      setError(
+        timedOut
+          ? t('payrollManagement.bonusRegister.mailTimeout')
+          : raw || t('payrollManagement.bonusRegister.mailNetwork')
+      );
     } finally {
+      setMailProgress({ open: false, phase: 'prepare', done: 0, total: 0, name: '' });
       setSaving(false);
     }
   }
@@ -1206,6 +1289,45 @@ export default function PayrollBonusPanel({
         onConfirm={handleConfirm}
         onCancel={handleCancel}
       />
+
+      <Dialog
+        open={mailProgress.open}
+        disableEscapeKeyDown
+        PaperProps={{ sx: getMvsDialogPaperSx(theme) }}
+      >
+        <DialogTitle>{t('payrollManagement.bonusRegister.mailProgressTitle')}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            {mailProgress.phase === 'prepare'
+              ? t('payrollManagement.bonusRegister.mailProgressPreparing', {
+                  done: mailProgress.done,
+                  total: mailProgress.total,
+                })
+              : t('payrollManagement.bonusRegister.mailProgressSending', {
+                  done: mailProgress.done,
+                  total: mailProgress.total,
+                })}
+          </Typography>
+          {mailProgress.name ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              {t('payrollManagement.bonusRegister.mailProgressCurrent', {
+                name: mailProgress.name,
+              })}
+            </Typography>
+          ) : null}
+          <LinearProgress
+            variant="determinate"
+            value={
+              mailProgress.total > 0
+                ? Math.min(100, (mailProgress.done / mailProgress.total) * 100)
+                : 0
+            }
+          />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            {mailProgress.done} / {mailProgress.total}
+          </Typography>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

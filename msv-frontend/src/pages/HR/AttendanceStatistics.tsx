@@ -44,7 +44,9 @@ import {
   mvsTableHeadHighlightSx,
   mvsBodyPaginationSx,
   mvsInnerCardSx,
+  mvsBodyFrameBorder,
 } from '../../theme/mvsLayout';
+import { getMvsDialogActionsSx, getMvsDialogPaperSx } from '../../components/Common/mvsDialogShell';
 import { Refresh as RefreshIcon, RestartAlt as ResetIcon, Schedule as ScheduleIcon } from '@mui/icons-material';
 import {
   Sync as SyncIcon,
@@ -328,16 +330,16 @@ const ATTENDANCE_USERS_PER_PAGE = 15;
 const ATTENDANCE_FILTER_OUTLINED = mvsOutlinedLabelProps;
 const attendanceFilterFieldSx = { ...mvsSearchFieldSx, ...mvsFilterFieldHeightSx } as const;
 const matrixNoColWidth = 36;
-/** 출근 매트릭스 — 급여 리스트(엑셀형)와 동일 톤: 얇은 격자·슬레이트 헤더·균등 분배 */
-const MATRIX_LINE = '#D4D4D4';
-const MATRIX_HEADER_BG = '#F1F5F9';
-const MATRIX_HEADER_FG = '#475569';
-const MATRIX_HEADER_BORDER = '#A8B4C0';
-const MATRIX_HOVER_BG = '#EAF4FC';
-/** 휴일(주말) 영역 — 아주 연한 하이라이트 + 세로 라인 */
-const MATRIX_HOLIDAY_LINE = '#E2C8C8';
-const MATRIX_HOLIDAY_BG = '#FFF8F8';
-const MATRIX_HOLIDAY_HEADER_BG = '#F5EDED';
+/** 출근 매트릭스 — Body 리스트와 동일 톤: #E2E8F0 격자·슬레이트 헤더 */
+const MATRIX_LINE = '#E2E8F0';
+const MATRIX_HEADER_BG = '#F8FAFC';
+const MATRIX_HEADER_FG = '#334155';
+const MATRIX_HEADER_BORDER = '#CBD5E1';
+const MATRIX_HOVER_BG = '#F1F5F9';
+/** 휴일(주말) — 상태색 없이 슬레이트 음영만 */
+const MATRIX_HOLIDAY_LINE = '#E2E8F0';
+const MATRIX_HOLIDAY_BG = '#F8FAFC';
+const MATRIX_HOLIDAY_HEADER_BG = '#F1F5F9';
 /** 상세 목록 — 미출근일 하이라이트 */
 const DETAIL_MISSING_BG = '#FFF2F2';
 /** 상태 표시 — 솔리드 원 + 흰 마크 */
@@ -378,14 +380,9 @@ const listViewModeBarSx = {
 } as const;
 
 const listViewModeBtnSx = {
-  height: 32,
+  ...mvsBodyOutlinedBtnSx,
+  height: 36,
   minWidth: 0,
-  px: 1.5,
-  textTransform: 'none' as const,
-  fontWeight: 600,
-  fontSize: '0.75rem',
-  borderRadius: '4px',
-  boxShadow: 'none',
   whiteSpace: 'nowrap' as const,
 };
 
@@ -413,8 +410,8 @@ const detailDialogTableBodySx: SxProps<Theme> = (theme) => {
     '& .MuiTableRow-root[data-missing="1"]:hover .MuiTableCell-body': { bgcolor: '#FFECEC' },
     '& .MuiTableRow-root[data-holiday-empty="1"]': { bgcolor: MATRIX_HOLIDAY_BG },
     '& .MuiTableRow-root[data-holiday-empty="1"] .MuiTableCell-body': { bgcolor: MATRIX_HOLIDAY_BG },
-    '& .MuiTableRow-root[data-holiday-empty="1"]:hover': { bgcolor: '#FFECEC' },
-    '& .MuiTableRow-root[data-holiday-empty="1"]:hover .MuiTableCell-body': { bgcolor: '#FFECEC' },
+    '& .MuiTableRow-root[data-holiday-empty="1"]:hover': { bgcolor: '#F1F5F9' },
+    '& .MuiTableRow-root[data-holiday-empty="1"]:hover .MuiTableCell-body': { bgcolor: '#F1F5F9' },
     '& .MuiTableRow-root:last-of-type .MuiTableCell-body': {
       borderBottom: 'none',
     },
@@ -1064,10 +1061,8 @@ const AttendanceStatistics: React.FC = () => {
         elevation={0}
         defaultExpanded={false}
         sx={{
+          ...mvsBodyCardSx,
           mb: 3,
-          border: '1px solid #B4B4B4',
-          borderRadius: '0 !important',
-          bgcolor: 'background.paper',
           '&:before': { display: 'none' },
           '&.Mui-expanded': { margin: 0, mb: 3 },
         }}
@@ -1075,14 +1070,14 @@ const AttendanceStatistics: React.FC = () => {
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}
           sx={{
-            minHeight: 44,
-            px: 1.5,
+            minHeight: 48,
+            px: { xs: 2, sm: 2.5 },
             py: 0.5,
-            bgcolor: '#F5F5F5',
+            bgcolor: '#FFFFFF',
             borderBottom: '1px solid transparent',
             '&.Mui-expanded': {
-              minHeight: 44,
-              borderBottom: '1px solid #B4B4B4',
+              minHeight: 48,
+              borderBottom: mvsBodyFrameBorder,
             },
             '& .MuiAccordionSummary-content': {
               my: 0.75,
@@ -1122,10 +1117,11 @@ const AttendanceStatistics: React.FC = () => {
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr auto' },
                   alignItems: { xs: 'stretch', lg: 'start' },
-                  gap: 1,
-                  p: 1.25,
-                  border: '1px solid #B4B4B4',
-                  bgcolor: '#FAFAFA',
+                  gap: 2,
+                  p: 2,
+                  border: mvsBodyFrameBorder,
+                  borderRadius: '8px',
+                  bgcolor: '#F8FAFC',
                 }}
               >
                 <TextField
@@ -1141,7 +1137,8 @@ const AttendanceStatistics: React.FC = () => {
                   }}
                   helperText={t('attendanceManagement.heresnowCompanyIdHint')}
                   FormHelperTextProps={{ sx: { mx: 0, mt: 0.5 } }}
-                  sx={{ minWidth: 0 }}
+                  {...mvsOutlinedLabelProps}
+                  sx={{ ...attendanceFilterFieldSx, minWidth: 0 }}
                 />
                 <TextField
                   size="small"
@@ -1156,14 +1153,16 @@ const AttendanceStatistics: React.FC = () => {
                     }
                   }}
                   onChange={(e) => setHeresnowApiKey(e.target.value)}
-                  sx={{ minWidth: 0 }}
+                  {...mvsOutlinedLabelProps}
+                  sx={{ ...attendanceFilterFieldSx, minWidth: 0 }}
                 />
                 <Button
                   variant="contained"
+                  disableElevation
                   size="small"
                   onClick={handleSaveHeresnowSettings}
                   disabled={heresnowSettingsLoading}
-                  sx={{ textTransform: 'none', fontWeight: 600, minWidth: { xs: '100%', lg: 128 }, height: 40 }}
+                  sx={{ ...mvsBodyPrimaryBtnSx, minWidth: { xs: '100%', lg: 128 }, height: 40 }}
                 >
                   {heresnowSettingsLoading ? <CircularProgress size={16} color="inherit" /> : t('attendanceManagement.heresnowSettingsSave')}
                 </Button>
@@ -1177,15 +1176,15 @@ const AttendanceStatistics: React.FC = () => {
                 justifyContent: 'flex-start',
                 gap: 0.9,
                 flexWrap: 'wrap',
-                pt: 1,
-                borderTop: '1px solid #B4B4B4',
+                pt: 1.5,
+                borderTop: mvsBodyFrameBorder,
               }}
             >
               {canManageHeresnow && (
                 <FormControlLabel
                   control={<Switch size="small" checked={Boolean(heresnowStatus?.enabled)} onChange={(e) => handleHeresnowToggle(e.target.checked)} />}
                   label={t('attendanceManagement.heresnowActive')}
-                  sx={{ mr: 0, '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: '0.9rem' } }}
+                  sx={{ mr: 0, '& .MuiFormControlLabel-label': { fontWeight: 600, fontSize: '0.8125rem' } }}
                 />
               )}
               {canManageHeresnow && (
@@ -1195,8 +1194,8 @@ const AttendanceStatistics: React.FC = () => {
                   label={t('attendanceManagement.heresnowSyncMonthLabel')}
                   value={heresnowSyncMonth}
                   onChange={(e) => setHeresnowSyncMonth(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ minWidth: 170, '& .MuiInputBase-root': { height: 38 } }}
+                  {...mvsOutlinedLabelProps}
+                  sx={{ ...attendanceFilterFieldSx, minWidth: 180 }}
                 />
               )}
               {canManageHeresnow && (
@@ -1206,7 +1205,7 @@ const AttendanceStatistics: React.FC = () => {
                   startIcon={heresnowTestLoading ? <CircularProgress size={16} /> : <SyncIcon />}
                   disabled={heresnowTestLoading || !heresnowStatus?.enabled}
                   onClick={handleHeresnowTest}
-                  sx={{ textTransform: 'none', fontWeight: 600, height: 38 }}
+                  sx={mvsBodyOutlinedBtnSx}
                 >
                   {t('attendanceManagement.heresnowTest')}
                 </Button>
@@ -1214,11 +1213,12 @@ const AttendanceStatistics: React.FC = () => {
               {canManageHeresnow && (
                 <Button
                   variant="contained"
+                  disableElevation
                   size="small"
                   startIcon={heresnowSyncLoading ? <CircularProgress size={16} /> : <SyncIcon />}
                   disabled={heresnowSyncLoading || !heresnowStatus?.enabled}
                   onClick={handleHeresnowSync}
-                  sx={{ textTransform: 'none', fontWeight: 700, height: 38 }}
+                  sx={mvsBodyPrimaryBtnSx}
                 >
                   {t('attendanceManagement.heresnowSync')}
                 </Button>
@@ -1235,7 +1235,7 @@ const AttendanceStatistics: React.FC = () => {
                 variant="text"
                 size="small"
                 endIcon={<OpenInNewIcon sx={{ fontSize: '1rem !important' }} />}
-                sx={{ textTransform: 'none', fontWeight: 600, height: 38, px: 1.2 }}
+                sx={{ ...mvsBodyOutlinedBtnSx, border: 'none', px: 1.2, '&:hover': { border: 'none', bgcolor: '#F1F5F9' } }}
               >
                 {t('attendanceManagement.heresnowOpen')}
               </Button>
@@ -1411,10 +1411,6 @@ const AttendanceStatistics: React.FC = () => {
               overflow: 'hidden',
               overflowX: 'hidden',
               overflowY: 'hidden',
-              borderRadius: 0,
-              border: `1px solid ${MATRIX_HEADER_BORDER}`,
-              boxShadow: 'none',
-              WebkitOverflowScrolling: 'auto',
             }}
           >
             <Box
@@ -1442,10 +1438,7 @@ const AttendanceStatistics: React.FC = () => {
                     variant={listViewMode === 'all' ? 'contained' : 'outlined'}
                     onClick={() => setListViewMode('all')}
                     sx={{
-                      ...listViewModeBtnSx,
-                      ...(listViewMode === 'all'
-                        ? { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }
-                        : { borderColor: '#CBD5E1', color: 'text.secondary', bgcolor: '#FFFFFF' }),
+                      ...(listViewMode === 'all' ? mvsBodyPrimaryBtnSx : listViewModeBtnSx),
                     }}
                   >
                     {t('attendanceStatistics.listView.viewAll')}
@@ -1456,10 +1449,7 @@ const AttendanceStatistics: React.FC = () => {
                     variant={listViewMode === 'page' ? 'contained' : 'outlined'}
                     onClick={() => setListViewMode('page')}
                     sx={{
-                      ...listViewModeBtnSx,
-                      ...(listViewMode === 'page'
-                        ? { bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' } }
-                        : { borderColor: '#CBD5E1', color: 'text.secondary', bgcolor: '#FFFFFF' }),
+                      ...(listViewMode === 'page' ? mvsBodyPrimaryBtnSx : listViewModeBtnSx),
                     }}
                   >
                     {t('attendanceStatistics.listView.viewPages')}
@@ -1597,6 +1587,8 @@ const AttendanceStatistics: React.FC = () => {
                         fontWeight: 600,
                         fontSize: '0.7rem',
                         color: MATRIX_HEADER_FG,
+                        borderTop: '2px solid',
+                        borderTopColor: 'primary.main',
                         borderBottom: `1px solid ${MATRIX_HEADER_BORDER}`,
                         overflow: 'hidden',
                       }}
@@ -1614,6 +1606,8 @@ const AttendanceStatistics: React.FC = () => {
                         fontWeight: 600,
                         fontSize: '0.7rem',
                         color: MATRIX_HEADER_FG,
+                        borderTop: '2px solid',
+                        borderTopColor: 'primary.main',
                         borderBottom: `1px solid ${MATRIX_HEADER_BORDER}`,
                         overflow: 'hidden',
                       }}
@@ -1637,7 +1631,9 @@ const AttendanceStatistics: React.FC = () => {
                             bgcolor: weekend ? MATRIX_HOLIDAY_HEADER_BG : MATRIX_HEADER_BG,
                             fontWeight: 600,
                             fontSize: '0.7rem',
-                            color: weekend ? '#9A4A4A' : MATRIX_HEADER_FG,
+                            color: weekend ? '#64748B' : MATRIX_HEADER_FG,
+                            borderTop: '2px solid',
+                            borderTopColor: 'primary.main',
                             borderBottom: `1px solid ${MATRIX_HEADER_BORDER}`,
                           }}
                         >
@@ -1659,7 +1655,7 @@ const AttendanceStatistics: React.FC = () => {
                           bgcolor: `${MATRIX_HOVER_BG} !important`,
                         },
                         '&:hover .MuiTableCell-root[data-holiday="1"]': {
-                          bgcolor: '#F5E8E8 !important',
+                          bgcolor: '#F1F5F9 !important',
                         },
                       }}
                     >
@@ -1835,7 +1831,7 @@ const AttendanceStatistics: React.FC = () => {
                   shape="rounded"
                   sx={{
                     '& .MuiPaginationItem-root': {
-                      borderRadius: '10px',
+                      borderRadius: '8px',
                       fontWeight: 500,
                     },
                   }}
@@ -1846,7 +1842,14 @@ const AttendanceStatistics: React.FC = () => {
         )}
       </Box>
 
-      <Dialog open={detailOpen} onClose={closeDetail} maxWidth="md" fullWidth scroll="paper">
+      <Dialog
+        open={detailOpen}
+        onClose={closeDetail}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        PaperProps={{ sx: getMvsDialogPaperSx(theme) }}
+      >
         <DialogTitle sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>
           {t('attendanceStatistics.detail.dialogTitle', { name: detailUserName || '—' })}
         </DialogTitle>
@@ -1956,7 +1959,7 @@ const AttendanceStatistics: React.FC = () => {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
+        <DialogActions sx={getMvsDialogActionsSx(theme)}>
           <Button onClick={closeDetail} variant="outlined" sx={mvsBodyOutlinedBtnSx}>
             {t('attendanceStatistics.detail.close')}
           </Button>

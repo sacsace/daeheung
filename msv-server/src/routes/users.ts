@@ -3,6 +3,16 @@ import { Op } from 'sequelize';
 import sequelize from '../config/database';
 import bcrypt from 'bcrypt';
 import { User, Company, Tenant } from '../models';
+import {
+  decideSalaryChange,
+  isEligibleSalaryApprover,
+  listPendingSalaryChanges,
+  listSalaryApprovers,
+  listSalaryHistory,
+  queueSalaryChange,
+  recordInitialSalary,
+  salariesEqual,
+} from '../controllers/salaryChangeController';
 import { resolveDepartmentFieldsForUser, resolveDepartmentFieldsByName } from '../controllers/departmentController';
 import { resolvePositionFieldsForUser, resolvePositionFieldsByName } from '../controllers/positionController';
 import { authenticateToken } from '../middleware/auth';
@@ -1016,6 +1026,110 @@ router.post(
   }
 );
 
+router.get(
+  '/salary-approvers',
+  requireAdminRootOrUserMenuPermission('can_edit'),
+  async (req, res) => {
+    try {
+      const authUser = (req as any).user;
+      const companyId = Number(req.query.company_id || authUser.company_id);
+      if (!Number.isFinite(companyId) || companyId <= 0) {
+        return res.status(400).json({ success: false, message: '회사를 선택해주세요.' });
+      }
+      if (authUser.role !== 'root' && authUser.role !== 'audit' && Number(authUser.company_id) !== companyId) {
+        return res.status(403).json({ success: false, message: '다른 회사의 담당자는 조회할 수 없습니다.' });
+      }
+      const data = await listSalaryApprovers(companyId, Number(authUser.tenant_id), Number(authUser.id));
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.error('급여 승인 담당자 조회 오류:', error);
+      return res.status(500).json({ success: false, message: '급여 승인 담당자를 불러오지 못했습니다.' });
+    }
+  }
+);
+
+router.get('/salary-changes/pending', async (req, res) => {
+  try {
+    const authUser = (req as any).user;
+    const data = await listPendingSalaryChanges({
+      id: Number(authUser.id),
+      role: String(authUser.role || ''),
+      tenant_id: Number(authUser.tenant_id),
+      company_id: Number(authUser.company_id),
+    });
+    return res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('급여 변경 승인 목록 오류:', error);
+    return res.status(500).json({ success: false, message: '급여 변경 승인 목록을 불러오지 못했습니다.' });
+  }
+});
+
+router.post('/salary-changes/:changeId/decision', async (req, res) => {
+  try {
+    const action = String(req.body?.action || '');
+    if (action !== 'approve' && action !== 'reject') {
+      return res.status(400).json({ success: false, message: '승인 또는 반려만 처리할 수 있습니다.' });
+    }
+    const authUser = (req as any).user;
+    const result = await decideSalaryChange({
+      changeId: Number(req.params.changeId),
+      actor: {
+        id: Number(authUser.id),
+        role: String(authUser.role || ''),
+        tenant_id: Number(authUser.tenant_id),
+      },
+      action,
+      reason: req.body?.reason,
+    });
+    if (!result.ok) {
+      return res.status(result.status).json({ success: false, message: result.message });
+    }
+    return res.json({
+      success: true,
+      data: result.data,
+      message: action === 'approve' ? '급여 변경을 승인했습니다.' : '급여 변경을 반려했습니다.',
+    });
+  } catch (error: any) {
+    console.error('급여 변경 승인 처리 오류:', error);
+    return res.status(500).json({ success: false, message: '급여 변경 승인 처리에 실패했습니다.' });
+  }
+});
+
+router.post(
+  '/:id/salary/history',
+  requireAdminRootOrUserMenuPermission('can_view'),
+  async (req, res) => {
+    try {
+      const verified = await verifyCurrentUserPassword(req, req.body?.password);
+      if (!verified.ok) {
+        return res.status(verified.status).json({ success: false, message: verified.message });
+      }
+      const targetId = parseInt(String(req.params.id), 10);
+      if (!Number.isFinite(targetId)) {
+        return res.status(400).json({ success: false, message: '잘못된 사용자 ID입니다.' });
+      }
+      const authUser = (req as any).user;
+      const where: Record<string, unknown> = { id: targetId, tenant_id: authUser.tenant_id };
+      if (authUser.role !== 'root' && authUser.role !== 'audit') {
+        where.company_id = authUser.company_id;
+      }
+      const target = await (User as any).findOne({ where, attributes: ['id', 'company_id'] });
+      if (!target) {
+        return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+      }
+      const data = await listSalaryHistory(
+        targetId,
+        Number(authUser.tenant_id),
+        authUser.role === 'root' || authUser.role === 'audit' ? undefined : Number(authUser.company_id)
+      );
+      return res.json({ success: true, data });
+    } catch (error: any) {
+      console.error('급여 변경 기록 조회 오류:', error);
+      return res.status(500).json({ success: false, message: '급여 변경 기록을 불러오지 못했습니다.' });
+    }
+  }
+);
+
 // 사용자 상세 조회
 router.get('/:id', async (req, res) => {
   try {
@@ -1367,6 +1481,11 @@ router.post(
     }
 
     const user = await (User as any).create(userData);
+    try {
+      await recordInitialSalary(user, Number((req as any).user.id));
+    } catch (salaryLogErr) {
+      console.warn('initial salary history failed:', salaryLogErr);
+    }
 
     try {
       await grantEmployeeSelfServicePermissions({
@@ -1670,6 +1789,7 @@ router.put(
     if (emergency_phone !== undefined) updateData.emergency_phone = emergency_phone || null;
     if (hire_date !== undefined) updateData.hire_date = hire_date || null;
     if (employment_type !== undefined) updateData.employment_type = employment_type || null;
+    let salaryChangePending = false;
     if (salary !== undefined) {
       const verified = await verifyCurrentUserPassword(req, (req.body as any).currentPassword);
       if (!verified.ok) {
@@ -1678,7 +1798,32 @@ router.put(
           message: verified.message || '급여 변경에는 로그인 비밀번호 확인이 필요합니다.',
         });
       }
-      updateData.salary = salary === '' ? null : parseSalaryInput(salary);
+      const nextSalary = salary === '' ? null : parseSalaryInput(salary);
+      if (!salariesEqual(user.salary, nextSalary)) {
+        const approverId = Number((req.body as any).salary_approver_id);
+        const actorId = Number((req as any).user.id);
+        const targetCompanyId = Number(user.company_id);
+        if (!Number.isFinite(approverId) || approverId <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: '급여 변경 승인 담당자를 선택해주세요.',
+          });
+        }
+        const eligible = await isEligibleSalaryApprover(approverId, targetCompanyId, Number(user.tenant_id), actorId);
+        if (!eligible) {
+          return res.status(400).json({
+            success: false,
+            message: '급여 변경 승인 담당자로 지정할 수 없는 사용자입니다.',
+          });
+        }
+        await queueSalaryChange({
+          user,
+          actorId,
+          nextSalary,
+          approverId,
+        });
+        salaryChangePending = true;
+      }
     }
     if (bank_name !== undefined) updateData.bank_name = bank_name || null;
     if (bank_account !== undefined) updateData.bank_account = bank_account || null;
@@ -1791,7 +1936,10 @@ router.put(
     res.json({
       success: true,
       data: userData,
-      message: '사용자 정보가 업데이트되었습니다.'
+      salary_change_pending: salaryChangePending,
+      message: salaryChangePending
+        ? '급여 변경이 담당자 승인 대기 중입니다. 승인 전까지 기존 급여가 유지됩니다.'
+        : '사용자 정보가 업데이트되었습니다.'
     });
   } catch (error: any) {
     console.error('사용자 수정 오류:', error);

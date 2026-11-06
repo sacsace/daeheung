@@ -30,6 +30,7 @@ import ProjectActivity from './ProjectActivity';
 import ProjectTaskComment from './ProjectTaskComment';
 import Payroll from './Payroll';
 import PayrollBonus from './PayrollBonus';
+import SalaryChangeRequest from './SalaryChangeRequest';
 import PayrollPeriodLock from './PayrollPeriodLock';
 import PayslipDelivery from './PayslipDelivery';
 import InventoryTransaction from './InventoryTransaction';
@@ -291,6 +292,14 @@ UserPermission.belongsTo(Menu, { foreignKey: 'menu_id', as: 'menu' });
 (PayrollBonus as any).belongsTo(User, { foreignKey: 'employee_id', as: 'employee' });
 (Company as any).hasMany(PayrollBonus, { foreignKey: 'company_id', as: 'payrollBonuses' });
 (PayrollBonus as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
+
+(User as any).hasMany(SalaryChangeRequest, { foreignKey: 'user_id', as: 'salaryChangeRequests' });
+(SalaryChangeRequest as any).belongsTo(User, { foreignKey: 'user_id', as: 'employee' });
+(SalaryChangeRequest as any).belongsTo(User, { foreignKey: 'requested_by', as: 'requester' });
+(SalaryChangeRequest as any).belongsTo(User, { foreignKey: 'approver_id', as: 'approver' });
+(SalaryChangeRequest as any).belongsTo(User, { foreignKey: 'decided_by', as: 'decider' });
+(Company as any).hasMany(SalaryChangeRequest, { foreignKey: 'company_id', as: 'salaryChangeRequests' });
+(SalaryChangeRequest as any).belongsTo(Company, { foreignKey: 'company_id', as: 'company' });
 
 // 발송된 급여 명세서 (엑셀 업로드 → 메일, MVS 사용자 매칭 시)
 (User as any).hasMany(PayslipDelivery, { foreignKey: 'user_id', as: 'payslipDeliveries' });
@@ -752,6 +761,7 @@ export {
   ProjectTaskComment,
   Payroll,
   PayrollBonus,
+  SalaryChangeRequest,
   PayrollPeriodLock,
   PayslipDelivery,
   InventoryTransaction,

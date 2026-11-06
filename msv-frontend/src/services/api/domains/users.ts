@@ -55,6 +55,28 @@ export const userService = {
     const response = await api.post(`/users/${userId}/salary/reveal`, { password });
     return response.data;
   },
+
+  listSalaryApprovers: async (companyId?: number) => {
+    const response = await api.get('/users/salary-approvers', {
+      params: companyId ? { company_id: companyId } : undefined,
+    });
+    return response.data;
+  },
+
+  getSalaryHistory: async (userId: number, password: string) => {
+    const response = await api.post(`/users/${userId}/salary/history`, { password });
+    return response.data;
+  },
+
+  listPendingSalaryChanges: async () => {
+    const response = await api.get('/users/salary-changes/pending');
+    return response.data;
+  },
+
+  decideSalaryChange: async (changeId: number, action: 'approve' | 'reject', reason?: string) => {
+    const response = await api.post(`/users/salary-changes/${changeId}/decision`, { action, reason });
+    return response.data;
+  },
 };
 
 /** 로그인 정보 관리 API */

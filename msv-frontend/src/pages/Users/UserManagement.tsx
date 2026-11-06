@@ -72,6 +72,7 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   Lock as LockOutlinedIcon,
+  History as HistoryIcon,
   AttachFile as AttachFileIcon,
   OpenInNew as OpenInNewIcon,
   PictureAsPdf as PictureAsPdfIcon,
@@ -89,6 +90,9 @@ import {
 import { useReferenceDataStore } from '../../store/referenceDataStore';
 import { useConfirmDialog } from '../../hooks/useConfirmDialog';
 import ConfirmDialog from '../../components/Common/ConfirmDialog';
+import { usePromptDialog } from '../../hooks/usePromptDialog';
+import PromptDialog from '../../components/Common/PromptDialog';
+import { getMvsDialogActionsSx, getMvsDialogPaperSx } from '../../components/Common/mvsDialogShell';
 import { useTranslation } from 'react-i18next';
 import { alpha, useTheme, type SxProps, type Theme } from '@mui/material/styles';
 import { DepartmentManagementPanel } from '../HR/DepartmentManagement';
@@ -348,6 +352,23 @@ const CompanySearchSelect: React.FC<CompanySearchSelectProps> = ({
 };
 
 /** 급여(INR): 소수 미표시, 천 단위 콤마 (예: ₹100,000) */
+function salaryAmountsDiffer(left: unknown, right: unknown): boolean {
+  const norm = (value: unknown) => {
+    const text = String(value ?? '').trim();
+    if (!text) return null;
+    const n = Number(text.replace(/,/g, ''));
+    return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+  };
+  return norm(left) !== norm(right);
+}
+
+function salaryStatusLabel(status: string, t: (key: string) => string): string {
+  if (status === 'approved') return t('userManagement.salaryStatusApproved');
+  if (status === 'rejected') return t('userManagement.salaryStatusRejected');
+  if (status === 'cancelled') return t('userManagement.salaryStatusCancelled');
+  return t('userManagement.salaryStatusPending');
+}
+
 function formatSalaryInr(value: unknown): string {
   const n = typeof value === 'number' ? value : parseFloat(String(value ?? '').replace(/,/g, ''));
   if (!Number.isFinite(n)) return '—';
@@ -617,6 +638,12 @@ const UserManagement: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language?.startsWith('en') ? 'en-US' : 'ko-KR';
   const { dialogState, showConfirm, handleConfirm, handleCancel } = useConfirmDialog();
+  const {
+    dialogState: promptState,
+    showPrompt,
+    handleConfirm: handlePromptConfirm,
+    handleCancel: handlePromptCancel,
+  } = usePromptDialog();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companyPtStateCode, setCompanyPtStateCode] = useState<string | null>(null);
@@ -633,6 +660,13 @@ const UserManagement: React.FC = () => {
   const [salaryUnlocked, setSalaryUnlocked] = useState(false);
   const [salaryPasswordForSubmit, setSalaryPasswordForSubmit] = useState('');
   const [salaryBaseline, setSalaryBaseline] = useState('');
+  const [salaryApproverId, setSalaryApproverId] = useState<number | ''>('');
+  const [salaryApprovers, setSalaryApprovers] = useState<Array<{ id: number; name: string }>>([]);
+  const [salaryHistoryOpen, setSalaryHistoryOpen] = useState(false);
+  const [salaryHistoryRows, setSalaryHistoryRows] = useState<any[]>([]);
+  const [salaryHistoryLoading, setSalaryHistoryLoading] = useState(false);
+  const [salaryPendingOpen, setSalaryPendingOpen] = useState(false);
+  const [salaryPendingRows, setSalaryPendingRows] = useState<any[]>([]);
   const [originalHasSalary, setOriginalHasSalary] = useState(false);
   const [importLoginPassword, setImportLoginPassword] = useState('');
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -1215,6 +1249,7 @@ const UserManagement: React.FC = () => {
     setSalaryUnlocked(false);
     setSalaryPasswordForSubmit('');
     setSalaryBaseline('');
+    setSalaryApproverId('');
     setOriginalHasSalary(Boolean((user as any).has_salary));
     setPageTab(1);
     setViewMode('edit');
@@ -1390,7 +1425,7 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const openSalaryUnlock = (mode: 'view' | 'edit') => {
+  const openSalaryUnlock = (mode: 'view' | 'edit' | 'history') => {
     setSalaryUnlockMode(mode);
     setSalaryUnlockPassword('');
     setSalaryUnlockError('');
@@ -1405,7 +1440,20 @@ const UserManagement: React.FC = () => {
     setSalaryUnlocking(true);
     setSalaryUnlockError('');
     try {
-      if (salaryUnlockMode === 'view') {
+      if (salaryUnlockMode === 'history') {
+        const targetId = editingUser?.id || selectedUser?.id;
+        if (!targetId) {
+          setSalaryUnlockError(t('personalSettings.salaryRevealFailed'));
+          return;
+        }
+        const res = await userService.getSalaryHistory(targetId, salaryUnlockPassword);
+        if (!res?.success) {
+          setSalaryUnlockError(res?.message || t('personalSettings.salaryRevealFailed'));
+          return;
+        }
+        setSalaryHistoryRows(Array.isArray(res.data) ? res.data : []);
+        setSalaryHistoryOpen(true);
+      } else if (salaryUnlockMode === 'view') {
         if (!selectedUser?.id) {
           setSalaryUnlockError(t('personalSettings.salaryRevealFailed'));
           return;
@@ -1451,6 +1499,62 @@ const UserManagement: React.FC = () => {
       setSalaryUnlocking(false);
     }
   };
+
+  const loadPendingSalaryChanges = useCallback(async () => {
+    try {
+      const res = await userService.listPendingSalaryChanges();
+      setSalaryPendingRows(Array.isArray(res?.data) ? res.data : []);
+    } catch {
+      setSalaryPendingRows([]);
+    }
+  }, []);
+
+  const openSalaryHistory = async (userId?: number) => {
+    if (!userId) return;
+    if (salaryPasswordForSubmit) {
+      setSalaryHistoryLoading(true);
+      setSalaryHistoryOpen(true);
+      try {
+        const res = await userService.getSalaryHistory(userId, salaryPasswordForSubmit);
+        setSalaryHistoryRows(Array.isArray(res?.data) ? res.data : []);
+      } catch (err: any) {
+        setSalaryHistoryOpen(false);
+        setError(err?.response?.data?.message || t('personalSettings.salaryRevealFailed'));
+      } finally {
+        setSalaryHistoryLoading(false);
+      }
+      return;
+    }
+    openSalaryUnlock('history');
+  };
+
+  const salaryDraftChanged =
+    salaryUnlocked && salaryAmountsDiffer(formData.salary, salaryBaseline);
+
+  useEffect(() => {
+    if (viewMode !== 'edit' || !salaryDraftChanged) return;
+    const companyId = Number(
+      (formData as { company_id?: number }).company_id || editingUser?.company_id || user?.company_id
+    );
+    if (!companyId) return;
+    let cancelled = false;
+    userService
+      .listSalaryApprovers(companyId)
+      .then((res) => {
+        if (!cancelled) setSalaryApprovers(Array.isArray(res?.data) ? res.data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSalaryApprovers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewMode, salaryDraftChanged, formData, editingUser?.company_id, user?.company_id]);
+
+  useEffect(() => {
+    if (viewMode !== 'list') return;
+    void loadPendingSalaryChanges();
+  }, [viewMode, loadPendingSalaryChanges]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1520,11 +1624,16 @@ const UserManagement: React.FC = () => {
         }
         const nextSalary = String(submitData.salary ?? '').trim();
         const baseline = String(salaryBaseline ?? '').trim();
-        if (nextSalary === baseline) {
+        if (!salaryAmountsDiffer(nextSalary, baseline)) {
           // 잠금 해제만 하고 값을 바꾸지 않았으면 급여 미전송 (실수 삭제/재저장 방지)
           delete submitData.salary;
         } else {
+          if (!salaryApproverId) {
+            setError(t('userManagement.salaryApproverRequired'));
+            return;
+          }
           submitData.currentPassword = salaryPasswordForSubmit;
+          submitData.salary_approver_id = salaryApproverId;
         }
       } else {
         delete submitData.salary;
@@ -1541,9 +1650,16 @@ const UserManagement: React.FC = () => {
         } else {
           delete submitData.company_id;
         }
-        await api.put(`/users/${editingUser.id}`, submitData);
+        const updateResponse = await api.put(`/users/${editingUser.id}`, submitData);
         savedUserId = editingUser.id;
-        setSuccess(t('userManagement.userUpdated'));
+        if (updateResponse.data?.salary_change_pending) {
+          setFormData((prev) => ({ ...prev, salary: salaryBaseline }));
+          setSalaryApproverId('');
+          setSuccess(t('userManagement.salaryChangeRequested'));
+          void loadPendingSalaryChanges();
+        } else {
+          setSuccess(t('userManagement.userUpdated'));
+        }
       } else {
         // root가 다른 회사에 사용자를 등록하는 경우
         if (user?.role === 'root' && (formData as { company_id?: number }).company_id) {
@@ -1610,6 +1726,7 @@ const UserManagement: React.FC = () => {
       setSalaryUnlocked(false);
       setSalaryPasswordForSubmit('');
       setSalaryBaseline('');
+      setSalaryApproverId('');
       setOriginalHasSalary(false);
       setPageTab(0);
       setViewMode('list');
@@ -2231,6 +2348,20 @@ const UserManagement: React.FC = () => {
                     {selectedUsers.every((id) => users.find((row) => row.id === id)?.status === 'inactive')
                       ? t('userManagement.purgeSelected')
                       : t('userManagement.deleteSelected')} ({selectedUsers.length})
+                  </Button>
+                ) : null}
+                {menuFlags.canEdit ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      void loadPendingSalaryChanges();
+                      setSalaryPendingOpen(true);
+                    }}
+                    sx={mvsBodyOutlinedBtnSx}
+                  >
+                    {t('userManagement.salaryApproval')}
+                    {salaryPendingRows.length > 0 ? ` (${salaryPendingRows.length})` : ''}
                   </Button>
                 ) : null}
                 <Button
@@ -3122,6 +3253,7 @@ const UserManagement: React.FC = () => {
                           }}
                         />
                       ) : (
+                        <Box>
                         <TextField
                           fullWidth
                           size="small"
@@ -3138,11 +3270,27 @@ const UserManagement: React.FC = () => {
                                 : t('userManagement.salaryLockedHint')
                           }
                           disabled={!salaryUnlocked}
-                          helperText={salaryUnlocked ? undefined : t('userManagement.salaryUnlockHint')}
+                          helperText={
+                            salaryDraftChanged
+                              ? t('userManagement.salaryApproverHint')
+                              : salaryUnlocked
+                                ? undefined
+                                : t('userManagement.salaryUnlockHint')
+                          }
                           InputProps={{
                             endAdornment: (
                               <InputAdornment position="end">
                                 <Typography sx={{ fontSize: '0.75rem', mr: 0.5 }}>INR</Typography>
+                                {editingUser ? (
+                                  <IconButton
+                                    size="small"
+                                    edge="end"
+                                    aria-label={t('userManagement.salaryHistory')}
+                                    onClick={() => void openSalaryHistory(editingUser.id)}
+                                  >
+                                    <HistoryIcon fontSize="small" />
+                                  </IconButton>
+                                ) : null}
                                 <IconButton
                                   size="small"
                                   edge="end"
@@ -3168,6 +3316,27 @@ const UserManagement: React.FC = () => {
                             ),
                           }}
                         />
+                        {salaryDraftChanged ? (
+                          <TextField
+                            select
+                            fullWidth
+                            size="small"
+                            sx={{ mt: 1.5 }}
+                            label={t('userManagement.salaryApprover')}
+                            {...OUTLINED_FIELD}
+                            value={salaryApproverId === '' ? '' : String(salaryApproverId)}
+                            onChange={(e) =>
+                              setSalaryApproverId(e.target.value ? Number(e.target.value) : '')
+                            }
+                          >
+                            {salaryApprovers.map((person) => (
+                              <MenuItem key={person.id} value={String(person.id)}>
+                                {person.name}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        ) : null}
+                        </Box>
                       )}
                     </Box>
                     <Box sx={{ width: '100%', minWidth: 0 }}>
@@ -4213,6 +4382,14 @@ const UserManagement: React.FC = () => {
                               <VisibilityIcon fontSize="small" />
                             </IconButton>
                           )}
+                          <IconButton
+                            size="small"
+                            aria-label={t('userManagement.salaryHistory')}
+                            onClick={() => void openSalaryHistory(selectedUser.id)}
+                            sx={{ p: 0.25 }}
+                          >
+                            <HistoryIcon fontSize="small" />
+                          </IconButton>
                         </Box>
                       </Box>
                     ) : null}
@@ -4744,6 +4921,174 @@ const UserManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={salaryHistoryOpen}
+        onClose={() => setSalaryHistoryOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: getMvsDialogPaperSx(theme) }}
+      >
+        <DialogTitle>{t('userManagement.salaryHistoryTitle')}</DialogTitle>
+        <DialogContent>
+          {salaryHistoryLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : salaryHistoryRows.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+              {t('userManagement.salaryHistoryEmpty')}
+            </Typography>
+          ) : (
+            <Table size="small">
+              <TableHead sx={mvsTableHeadHighlightSx}>
+                <TableRow>
+                  <TableCell>{t('userManagement.salaryColWhen')}</TableCell>
+                  <TableCell align="right">{t('userManagement.salaryColPrevious')}</TableCell>
+                  <TableCell align="right">{t('userManagement.salaryColRequested')}</TableCell>
+                  <TableCell>{t('userManagement.salaryColStatus')}</TableCell>
+                  <TableCell>{t('userManagement.salaryColRequester')}</TableCell>
+                  <TableCell>{t('userManagement.salaryColApprover')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody sx={mvsTableBodyRowSx}>
+                {salaryHistoryRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {row.created_at ? new Date(row.created_at).toLocaleString() : '-'}
+                    </TableCell>
+                    <TableCell align="right">{formatSalaryInr(row.previous_salary)}</TableCell>
+                    <TableCell align="right">{formatSalaryInr(row.requested_salary)}</TableCell>
+                    <TableCell>{salaryStatusLabel(String(row.status || ''), t)}</TableCell>
+                    <TableCell>{row.requester_name || '-'}</TableCell>
+                    <TableCell>{row.approver_name || '-'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+        <DialogActions sx={getMvsDialogActionsSx(theme)}>
+          <Button onClick={() => setSalaryHistoryOpen(false)} sx={mvsBodyOutlinedBtnSx}>
+            {t('common.close')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={salaryPendingOpen}
+        onClose={() => setSalaryPendingOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: getMvsDialogPaperSx(theme) }}
+      >
+        <DialogTitle>{t('userManagement.salaryApproval')}</DialogTitle>
+        <DialogContent>
+          {salaryPendingRows.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+              {t('userManagement.salaryApprovalEmpty')}
+            </Typography>
+          ) : (
+            <Table size="small">
+              <TableHead sx={mvsTableHeadHighlightSx}>
+                <TableRow>
+                  <TableCell>{t('userManagement.name')}</TableCell>
+                  <TableCell align="right">{t('userManagement.salaryColPrevious')}</TableCell>
+                  <TableCell align="right">{t('userManagement.salaryColRequested')}</TableCell>
+                  <TableCell>{t('userManagement.salaryColRequester')}</TableCell>
+                  <TableCell>{t('userManagement.actions')}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody sx={mvsTableBodyRowSx}>
+                {salaryPendingRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.employee_name || '-'}</TableCell>
+                    <TableCell align="right">{formatSalaryInr(row.previous_salary)}</TableCell>
+                    <TableCell align="right">{formatSalaryInr(row.requested_salary)}</TableCell>
+                    <TableCell>{row.requester_name || '-'}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disableElevation
+                        sx={{ ...mvsBodyPrimaryBtnSx, mr: 1 }}
+                        onClick={() =>
+                          showConfirm(
+                            t('userManagement.salaryApproveConfirm', {
+                              name: row.employee_name || '-',
+                              amount: formatSalaryInr(row.requested_salary),
+                            }),
+                            () => {
+                              void userService
+                                .decideSalaryChange(row.id, 'approve')
+                                .then(() => {
+                                  setSuccess(t('userManagement.salaryApproved'));
+                                  void loadPendingSalaryChanges();
+                                  void fetchUsers();
+                                })
+                                .catch((err: any) =>
+                                  setError(err?.response?.data?.message || t('userManagement.operationFailed'))
+                                );
+                            }
+                          )
+                        }
+                      >
+                        {t('userManagement.salaryStatusApproved')}
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        sx={mvsBodyOutlinedBtnSx}
+                        onClick={() =>
+                          showPrompt(
+                            t('userManagement.salaryRejectPrompt'),
+                            (reason) => {
+                              void userService
+                                .decideSalaryChange(row.id, 'reject', reason)
+                                .then(() => {
+                                  setSuccess(t('userManagement.salaryRejected'));
+                                  void loadPendingSalaryChanges();
+                                })
+                                .catch((err: any) =>
+                                  setError(err?.response?.data?.message || t('userManagement.operationFailed'))
+                                );
+                            },
+                            { title: t('userManagement.salaryRejectTitle'), required: false }
+                          )
+                        }
+                      >
+                        {t('userManagement.salaryStatusRejected')}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+        <DialogActions sx={getMvsDialogActionsSx(theme)}>
+          <Button onClick={() => setSalaryPendingOpen(false)} sx={mvsBodyOutlinedBtnSx}>
+            {t('common.close')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <PromptDialog
+        open={promptState.open}
+        title={promptState.title}
+        message={promptState.message}
+        label={promptState.label}
+        defaultValue={promptState.defaultValue}
+        placeholder={promptState.placeholder}
+        multiline={promptState.multiline}
+        minRows={promptState.minRows}
+        confirmText={promptState.confirmText}
+        cancelText={promptState.cancelText}
+        required={promptState.required}
+        onConfirm={handlePromptConfirm}
+        onCancel={handlePromptCancel}
+      />
 
       {/* 확인 다이얼로그 */}
       <ConfirmDialog

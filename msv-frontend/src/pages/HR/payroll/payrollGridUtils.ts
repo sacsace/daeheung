@@ -686,13 +686,22 @@ export function recalculatePayrollRow(
   const { custom_allowances: customAllowances, custom_allowance_inputs, customSum } =
     resolveCustomAllowanceAmounts(row, columnPrefs.customColumns);
   const totalSalaryInput = num(row.total_salary);
+  const rowSalaryBasis = String(row.employment_salary_basis || '').trim();
+  const rowIsDaily = rowSalaryBasis === 'daily';
 
   let basic: number;
   let hra: number;
   let otherAllowance: number;
   let constant_parts: Record<string, number>;
 
-  if (opts.preferTotalSplit && totalSalaryInput > 0) {
+  if (rowIsDaily) {
+    // 일용직: 급여 합계 = 일당. 기본급에만 두고 HRA·상수 분해 없음.
+    const dailyRate = Math.max(0, roundInr(totalSalaryInput > 0 ? totalSalaryInput : num(row.basic_salary)));
+    basic = dailyRate;
+    hra = 0;
+    otherAllowance = 0;
+    constant_parts = {};
+  } else if (opts.preferTotalSplit && totalSalaryInput > 0) {
     const packageBase = Math.max(0, roundInr(totalSalaryInput));
     const split = splitPackageByRatios(packageBase, ratios);
     const applied = applySplitMapToComponents(split, ratios);
@@ -717,7 +726,8 @@ export function recalculatePayrollRow(
 
   const calendarDays = Math.max(1, num(row.total_day_of_month) || 30);
   const unpaidNormalized = roundUnpaidLeave(num(row.unpaid_leave));
-  const isFixedRest = String(row.employment_salary_basis || '') === 'fixed_rest_monthly';
+  const isDaily = rowIsDaily;
+  const isFixedRest = rowSalaryBasis === 'fixed_rest_monthly';
   const fixedRestDays =
     row.fixed_rest_days != null && Number.isFinite(num(row.fixed_rest_days))
       ? Math.floor(num(row.fixed_rest_days))
@@ -727,7 +737,9 @@ export function recalculatePayrollRow(
   const days_worked = String(worked);
   const unpaid_leave = String(unpaidNormalized);
 
-  const defaultOtRate = basic > 0 ? defaultOtRateFromBasic(basic) : 0;
+  // 일용직: total_salary = 일당. OT Rate는 월 환산(일당×달력일) 기준.
+  const otBase = isDaily ? totalSalary * calendarDays : basic;
+  const defaultOtRate = otBase > 0 ? defaultOtRateFromBasic(otBase) : 0;
   const otRateManual = Boolean(row.ot_rate_manual);
   const otRate = otRateManual ? Math.max(0, Math.floor(num(row.ot_rate))) : defaultOtRate;
   const otEligible = row.ot_eligible === true;
@@ -739,11 +751,13 @@ export function recalculatePayrollRow(
     day_ot_hour: dayOtHour
   });
   const transport = 0;
-  // 서비스: 무급 0이면 +4일 지급. 그 외 직군은 근무일만.
+  // 일용직: 일당 × 근무일. 서비스: 무급 0이면 +4일 지급. 그 외는 월급 비례.
   const payDays = isFixedRest
     ? fixedRestPayDays(row.total_day_of_month, unpaidNormalized, fixedRestDays)
     : worked;
-  const proratedPackage = roundInr((totalSalary * payDays) / calendarDays);
+  const proratedPackage = isDaily
+    ? roundInr(totalSalary * worked)
+    : roundInr((totalSalary * payDays) / calendarDays);
   const sum_total = roundInr(proratedPackage + overtime + transport + customSum);
 
   const pfCalcMode = row.pf_calc_mode ?? 'cap_1800';
@@ -756,7 +770,10 @@ export function recalculatePayrollRow(
     // 사측 PF는 직원 PF와 동일 매칭 (수동 입력 시에도 동일 규칙)
     pfEmployerStr = String(pfEmployee);
   } else {
-    const pf = computePfContributions(basic, pfCalcMode, totalSalary);
+    // 일용직 PF: 기본분=일당×근무일, 패키지=일당×달력일(월 환산)
+    const pfBasic = isDaily ? proratedPackage : basic;
+    const pfPackage = isDaily ? roundInr(totalSalary * calendarDays) : totalSalary;
+    const pf = computePfContributions(pfBasic, pfCalcMode, pfPackage);
     pfEmployeeStr = String(pf.pf_employee);
     pfEmployerStr = String(pf.pf_employer);
   }
@@ -983,10 +1000,14 @@ export function payrollRecordToGridRow(
 
   /**
    * 급여 생성 시 DB basic_salary = 패키지 전체(프로필/계약 급여).
+   * 일용직은 basic_salary = 일당(하루 금액). 상수 % 분해하지 않는다.
    * extra에 상수 분해(total_salary / HRA / 기타 / constant_parts)가 있으면 그 값을 쓰고,
    * 없으면 패키지 전체를 회사 상수 %로 분배한다.
    */
   const packageFromDb = num(p.basic_salary);
+  const salaryBasisEarly = String(ex(x, 'employment_salary_basis') || '').trim();
+  const isDailyRow = salaryBasisEarly === 'daily';
+  const dailyWageFromExtra = num(ex(x, 'daily_wage'));
   const storedTotal = num(ex(x, 'total_salary'));
   const hraInitial = num(ex(x, 'house_rent_allowance'));
   let otherAllowance = num(ex(x, 'other_allowance'));
@@ -1003,7 +1024,16 @@ export function payrollRecordToGridRow(
   let hra: number;
   let totalSalary: number;
 
-  if (!hasSavedBreakdown && packageFromDb > 0) {
+  if (isDailyRow) {
+    // 일용직: 금액 필드 = 일당. HRA·기타 상수 분해 없음.
+    const dailyRate =
+      dailyWageFromExtra > 0 ? dailyWageFromExtra : packageFromDb > 0 ? packageFromDb : storedTotal;
+    basic = dailyRate;
+    hra = 0;
+    otherAllowance = 0;
+    totalSalary = dailyRate;
+    for (const key of Object.keys(constant_parts)) delete constant_parts[key];
+  } else if (!hasSavedBreakdown && packageFromDb > 0) {
     // 신규/미분해: DB basic_salary = 패키지 전체 → 상수 %로 분배. 급여 합계 = 패키지.
     totalSalary = packageFromDb;
     const split = splitPackageByRatios(totalSalary, ratios);
@@ -1167,6 +1197,20 @@ export function gridRowToPayload(
     unpaid_leave: stripCommaField(recalculated.unpaid_leave),
     days_worked: stripCommaField(recalculated.days_worked),
     employment_salary_basis: recalculated.employment_salary_basis || '',
+    ...(recalculated.employment_salary_basis === 'daily'
+      ? {
+          daily_wage: String(recalculated.total_salary),
+          prorated_basic: String(
+            roundInr(
+              num(recalculated.total_salary) *
+                derivedDaysWorkedFromCalendarAndUnpaid(
+                  recalculated.total_day_of_month,
+                  recalculated.unpaid_leave
+                )
+            )
+          ),
+        }
+      : {}),
     ...(recalculated.employment_salary_basis === 'fixed_rest_monthly'
       ? {
           fixed_rest_days: String(

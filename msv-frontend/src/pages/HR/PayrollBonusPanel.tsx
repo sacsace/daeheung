@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Autocomplete,
@@ -176,6 +176,7 @@ export default function PayrollBonusPanel({
     total: number;
     name: string;
   }>({ open: false, phase: 'prepare', done: 0, total: 0, name: '' });
+  const mailCancelRef = useRef(false);
 
   const currentInstallment = installments === 1 ? 1 : installment;
 
@@ -524,26 +525,36 @@ export default function PayrollBonusPanel({
     );
   }
 
+  function cancelMailSend() {
+    mailCancelRef.current = true;
+  }
+
   async function sendStatements() {
     if (typeof companyId !== 'number' || selectedSaved.length === 0) return;
     const targets = [...selectedSaved];
     const total = targets.length;
+    mailCancelRef.current = false;
     setSaving(true);
     setError(null);
-    setMailProgress({ open: true, phase: 'prepare', done: 0, total, name: '' });
+    setMailProgress({ open: true, phase: 'prepare', done: 0, total, name: '—' });
     let sent = 0;
     let failed = 0;
     let firstError = '';
+    let cancelled = false;
     try {
       const companyInfo = await loadBonusCompanyInfo(companyId);
       for (let index = 0; index < targets.length; index += 1) {
+        if (mailCancelRef.current) {
+          cancelled = true;
+          break;
+        }
         const row = targets[index];
         setMailProgress({
           open: true,
           phase: 'prepare',
           done: index,
           total,
-          name: row.employee_name,
+          name: row.employee_name || '—',
         });
         let pdfBase64 = '';
         try {
@@ -554,6 +565,10 @@ export default function PayrollBonusPanel({
             purpose: 'email',
             documentView: bonusStatementView(row, fiscalYear, currentInstallment, installments),
           });
+          if (mailCancelRef.current) {
+            cancelled = true;
+            break;
+          }
           pdfBase64 = await payslipBlobToBase64(blob);
         } catch (prepErr: any) {
           failed += 1;
@@ -565,17 +580,21 @@ export default function PayrollBonusPanel({
             phase: 'prepare',
             done: index + 1,
             total,
-            name: row.employee_name,
+            name: row.employee_name || '—',
           });
           continue;
         }
 
+        if (mailCancelRef.current) {
+          cancelled = true;
+          break;
+        }
         setMailProgress({
           open: true,
           phase: 'send',
           done: index,
           total,
-          name: row.employee_name,
+          name: row.employee_name || '—',
         });
         try {
           const res = await payrollService.sendPayrollBonusStatements(
@@ -612,11 +631,15 @@ export default function PayrollBonusPanel({
           phase: 'send',
           done: index + 1,
           total,
-          name: row.employee_name,
+          name: row.employee_name || '—',
         });
       }
 
-      if (failed > 0) {
+      if (cancelled) {
+        showSuccessPopup(
+          t('payrollManagement.bonusRegister.mailCancelled', { ok: sent, fail: failed })
+        );
+      } else if (failed > 0) {
         setError(
           firstError ||
             t('payrollManagement.bonusRegister.mailPartial', { count: sent, failed })
@@ -636,6 +659,7 @@ export default function PayrollBonusPanel({
           : raw || t('payrollManagement.bonusRegister.mailNetwork')
       );
     } finally {
+      mailCancelRef.current = false;
       setMailProgress({ open: false, phase: 'prepare', done: 0, total: 0, name: '' });
       setSaving(false);
     }
@@ -1293,11 +1317,21 @@ export default function PayrollBonusPanel({
       <Dialog
         open={mailProgress.open}
         disableEscapeKeyDown
-        PaperProps={{ sx: getMvsDialogPaperSx(theme) }}
+        PaperProps={{
+          sx: {
+            ...getMvsDialogPaperSx(theme),
+            width: 420,
+            maxWidth: 'calc(100vw - 32px)',
+            minHeight: 260,
+          },
+        }}
       >
         <DialogTitle>{t('payrollManagement.bonusRegister.mailProgressTitle')}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 1.5 }}>
+        <DialogContent sx={{ minHeight: 140 }}>
+          <Typography
+            variant="body2"
+            sx={{ mb: 1.5, minHeight: 40, lineHeight: 1.4 }}
+          >
             {mailProgress.phase === 'prepare'
               ? t('payrollManagement.bonusRegister.mailProgressPreparing', {
                   done: mailProgress.done,
@@ -1308,13 +1342,21 @@ export default function PayrollBonusPanel({
                   total: mailProgress.total,
                 })}
           </Typography>
-          {mailProgress.name ? (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-              {t('payrollManagement.bonusRegister.mailProgressCurrent', {
-                name: mailProgress.name,
-              })}
-            </Typography>
-          ) : null}
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              mb: 1.5,
+              minHeight: 24,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {t('payrollManagement.bonusRegister.mailProgressCurrent', {
+              name: mailProgress.name || '—',
+            })}
+          </Typography>
           <LinearProgress
             variant="determinate"
             value={
@@ -1322,11 +1364,17 @@ export default function PayrollBonusPanel({
                 ? Math.min(100, (mailProgress.done / mailProgress.total) * 100)
                 : 0
             }
+            sx={{ height: 8, borderRadius: 1 }}
           />
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
             {mailProgress.done} / {mailProgress.total}
           </Typography>
         </DialogContent>
+        <DialogActions sx={getMvsDialogActionsSx(theme)}>
+          <Button onClick={cancelMailSend} color="warning" sx={getMvsDialogCancelButtonSx(theme)}>
+            {t('payrollManagement.bonusRegister.mailCancelSending')}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

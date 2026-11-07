@@ -1530,6 +1530,21 @@ const UserManagement: React.FC = () => {
 
   const salaryDraftChanged =
     salaryUnlocked && salaryAmountsDiffer(formData.salary, salaryBaseline);
+  const isDailyEmployment = formData.employment_type === 'daily';
+  const salaryFieldLabel = isDailyEmployment
+    ? t('userManagement.dailyWage')
+    : t('userManagement.salary');
+  const salaryFieldPlaceholder = isDailyEmployment
+    ? t('userManagement.placeholderDailyWage')
+    : t('userManagement.placeholderMonthlySalary');
+  const salaryFieldUnlockHint = isDailyEmployment
+    ? t('userManagement.salaryUnlockHintDaily')
+    : t('userManagement.salaryUnlockHint');
+  const salaryFieldChangeHint = isDailyEmployment
+    ? t('userManagement.dailyWageHint')
+    : user?.role === 'root'
+      ? t('userManagement.salaryRootDirectHint')
+      : t('userManagement.salaryApproverHint');
 
   useEffect(() => {
     if (viewMode !== 'edit' || !salaryDraftChanged || user?.role === 'root') return;
@@ -3241,15 +3256,18 @@ const UserManagement: React.FC = () => {
                           fullWidth
                           size="small"
                           type="number"
-                          label={t('userManagement.salary')}
+                          label={salaryFieldLabel}
                           {...OUTLINED_FIELD}
                           value={formData.salary}
                           onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
-                          placeholder={t('userManagement.placeholderMonthlySalary')}
+                          placeholder={salaryFieldPlaceholder}
+                          helperText={isDailyEmployment ? t('userManagement.dailyWageHint') : undefined}
                           InputProps={{
                             endAdornment: (
                               <InputAdornment position="end">
-                                <Typography sx={{ fontSize: '0.75rem' }}>INR</Typography>
+                                <Typography sx={{ fontSize: '0.75rem' }}>
+                                  {isDailyEmployment ? 'INR / day' : 'INR'}
+                                </Typography>
                               </InputAdornment>
                             ),
                           }}
@@ -3260,13 +3278,13 @@ const UserManagement: React.FC = () => {
                           fullWidth
                           size="small"
                           type="number"
-                          label={t('userManagement.salary')}
+                          label={salaryFieldLabel}
                           {...OUTLINED_FIELD}
                           value={salaryUnlocked ? formData.salary : ''}
                           onChange={(e) => setFormData({ ...formData, salary: e.target.value })}
                           placeholder={
                             salaryUnlocked
-                              ? t('userManagement.placeholderMonthlySalary')
+                              ? salaryFieldPlaceholder
                               : originalHasSalary || formData.salary
                                 ? t('userManagement.salaryMasked')
                                 : t('userManagement.salaryLockedHint')
@@ -3274,17 +3292,19 @@ const UserManagement: React.FC = () => {
                           disabled={!salaryUnlocked}
                           helperText={
                             salaryDraftChanged
-                              ? user?.role === 'root'
-                                ? t('userManagement.salaryRootDirectHint')
-                                : t('userManagement.salaryApproverHint')
+                              ? salaryFieldChangeHint
                               : salaryUnlocked
-                                ? undefined
-                                : t('userManagement.salaryUnlockHint')
+                                ? isDailyEmployment
+                                  ? t('userManagement.dailyWageHint')
+                                  : undefined
+                                : salaryFieldUnlockHint
                           }
                           InputProps={{
                             endAdornment: (
                               <InputAdornment position="end">
-                                <Typography sx={{ fontSize: '0.75rem', mr: 0.5 }}>INR</Typography>
+                                <Typography sx={{ fontSize: '0.75rem', mr: 0.5 }}>
+                                  {isDailyEmployment ? 'INR / day' : 'INR'}
+                                </Typography>
                                 {editingUser ? (
                                   <IconButton
                                     size="small"
@@ -4359,7 +4379,9 @@ const UserManagement: React.FC = () => {
                     {hasSalary ? (
                       <Box>
                         <Typography variant="body2" sx={userDetailLabelSx}>
-                          {t('userManagement.salary')}
+                          {su.employment_type === 'daily'
+                            ? t('userManagement.dailyWage')
+                            : t('userManagement.salary')}
                         </Typography>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <Typography variant="body1" sx={userDetailValueSx}>

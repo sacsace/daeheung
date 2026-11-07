@@ -458,15 +458,15 @@ export const bulkGeneratePayrolls = async (req: RequestWithUser, res: Response) 
         const profileSalary = parseFloat(String(emp.salary ?? 0)) || 0;
         const contractSalary =
           contract && contract.salary != null ? parseFloat(String(contract.salary)) || 0 : 0;
-        const useContractSalary = contract && contractSalary > 0;
-        const basic_salary = useContractSalary ? contractSalary : profileSalary;
-
         const payCfg = resolveEmploymentTypePayConfig(
           companyPaySettings,
           (emp as any).employment_type
         );
         const isDaily = payCfg.salaryBasis === 'daily';
         const isFixedRest = payCfg.salaryBasis === 'fixed_rest_monthly';
+        // 일용직 급여 필드는 일당. 계약 월급으로 덮어쓰지 않는다.
+        const useContractSalary = !isDaily && Boolean(contract) && contractSalary > 0;
+        const basic_salary = useContractSalary ? contractSalary : profileSalary;
 
         /** 일당 기준: 상여·연장 산정용 월 환산 = 일당 × 해당월 일수 */
         const monthlyEquivForDaily = basic_salary * bounds.daysInMonth;
@@ -595,6 +595,7 @@ export const bulkGeneratePayrolls = async (req: RequestWithUser, res: Response) 
             : {}),
           ...statExtra,
           account_cash: '',
+          ...(isDaily ? { daily_wage: String(basic_salary) } : {}),
           salary_source: isDaily
             ? 'daily_wage'
             : isFixedRest

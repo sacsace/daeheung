@@ -71,13 +71,13 @@ server\start-server.bat
 
 ### 백엔드 서버
 ```bash
-cd msv-server
+cd daeheung-rt-one-api
 npm run dev
 ```
 
 ### 프론트엔드 서버
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 
@@ -114,21 +114,21 @@ netstat -ano | findstr :3000
 ### 환경 변수 파일이 없는 경우
 ```bash
 # 백엔드 환경 변수 파일 복사
-copy msv-server\env.example msv-server\.env
+copy daeheung-rt-one-api\env.example daeheung-rt-one-api\.env
 
 # 프론트엔드 환경 변수 파일 복사 (필요한 경우)
-copy msv-frontend\env.example msv-frontend\.env
+copy daeheung-rt-one-web\env.example daeheung-rt-one-web\.env
 ```
 
 ### 의존성이 설치되지 않은 경우
 스크립트가 자동으로 설치를 시도합니다. 수동으로 설치하려면:
 ```bash
 # 백엔드 의존성 설치
-cd msv-server
+cd daeheung-rt-one-api
 npm install
 
 # 프론트엔드 의존성 설치
-cd msv-frontend
+cd daeheung-rt-one-web
 npm install
 ```
 
@@ -203,10 +203,10 @@ Railway Postgres에는 **파일 업로드 UI가 없습니다.** 로컬 PC에서 
 
 ### 2. 복원 실행 (저장소 루트 `MVS/` 기준)
 
-**기본 경로** `backup/mvs_db.dump` (pg_dump 커스텀 포맷 `-Fc`) 를 Railway DB에 넣습니다.
+**기본 경로** `backup/daeheung-rt-one-db.dump` (pg_dump 커스텀 포맷 `-Fc`) 를 Railway DB에 넣습니다.
 
 ```powershell
-cd msv-server
+cd daeheung-rt-one-api
 $env:DATABASE_URL = "postgresql://...."   # Railway에서 복사한 값 전체
 npm run db:restore:railway
 ```
@@ -214,13 +214,13 @@ npm run db:restore:railway
 다른 덤프 파일을 지정:
 
 ```powershell
-npm run db:restore:railway -- ..\backup\mvs_db.dump
+npm run db:restore:railway -- ..\backup\daeheung-rt-one-db.dump
 ```
 
 **기존 스키마·데이터를 비우고** 덤프 내용으로 맞추려면 (운영 DB에서는 신중히):
 
 ```powershell
-npm run db:restore:railway -- ..\backup\mvs_db.dump --clean
+npm run db:restore:railway -- ..\backup\daeheung-rt-one-db.dump --clean
 ```
 
 **평문 `.sql` 파일**이면 스크립트가 자동으로 `psql -f`를 사용합니다.

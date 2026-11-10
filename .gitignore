@@ -137,3 +137,6 @@ playwright/.cache/
 backup/
 msv-server/uploads/
 msv-frontend/.env.development
+daeheung-rt-one-api/uploads/
+daeheung-rt-one-api/config/config.json
+daeheung-rt-one-web/.env.development

@@ -3,7 +3,7 @@
 
 param(
   [string]$DevApiBase = "http://localhost:5000/api",
-  [string]$OutFile = (Join-Path $PSScriptRoot "..\msv-server\data\menus-dev-export.json"),
+  [string]$OutFile = (Join-Path $PSScriptRoot "..\daeheung-rt-one-api\data\menus-dev-export.json"),
   [string]$UserId = "root",
   [string]$Password = "admin123",
   [int]$TenantId = 1

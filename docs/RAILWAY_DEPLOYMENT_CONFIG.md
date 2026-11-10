@@ -4,14 +4,14 @@
 
 ### 1. 백엔드 서비스 (API)
 - **서비스명**: `mvs-backend`
-- **Root Directory**: `msv-server`
+- **Root Directory**: `daeheung-rt-one-api`
 - **도메인**: `api.mvsystem.in`
 - **포트**: Railway 자동 할당
 - **환경변수**: `env.railway` 파일 사용
 
 ### 2. 프론트엔드 서비스 (Web)
 - **서비스명**: `mvs-frontend`  
-- **Root Directory**: `msv-frontend`
+- **Root Directory**: `daeheung-rt-one-web`
 - **도메인**: `www.mvsystem.in`
 - **포트**: Railway 자동 할당
 - **환경변수**: `env.railway` 파일 사용

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <!-- 파비콘 교체 후 안 보이면 ?v= 값을 올리고 재빌드(또는 강력 새로고침 Ctrl+Shift+R) -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico?v=5" sizes="48x48" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.svg?v=5" type="image/svg+xml" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="theme-color" content="#0D2B5B" />
+    <meta name="naver-site-verification" content="bd341857088d3f89bf20ae3f561e4d946ee07d8a" />
+    <meta
+      name="description"
+      content="Daeheung R&T One - 통합 업무 관리 시스템"
+    />
+    <!-- OS(브라우저) 언어에 따라 SEO 메타(title/description/lang)를 한글·영어로 초기 설정 -->
+    <script>
+      (function () {
+        try {
+          var raw = (navigator.language || (navigator.languages && navigator.languages[0]) || navigator.userLanguage || 'en').toLowerCase();
+          var isKorean = raw.indexOf('ko') === 0;
+          var seo = isKorean
+            ? {
+                lang: 'ko',
+                title: 'Daeheung R&T One',
+                description: 'Daeheung R&T One - 통합 업무 관리 시스템'
+              }
+            : {
+                lang: 'en',
+                title: 'Daeheung R&T One',
+                description: 'Daeheung R&T One - Integrated business management system'
+              };
+          document.documentElement.lang = seo.lang;
+          document.title = seo.title;
+          var descTag = document.querySelector('meta[name="description"]');
+          if (descTag) descTag.setAttribute('content', seo.description);
+        } catch (e) {
+          /* 언어 감지 실패 시 정적 한글 메타 유지 */
+        }
+      })();
+    </script>
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png?v=5" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..800&family=Noto+Sans+KR:wght@300..800&display=swap"
+    />
+    <title>Daeheung R&T One</title>
+  </head>
+  <body>
+    <noscript>Please enable JavaScript to run this app. / 이 앱을 실행하려면 JavaScript를 활성화하세요.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

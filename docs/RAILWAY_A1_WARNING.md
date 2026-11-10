@@ -230,7 +230,7 @@ Port 3000 is already in use
 **해결:**
 1. 배포 로그 확인
 2. 빌드 단계가 성공했는지 확인
-3. Root Directory 설정 확인 (`msv-frontend`)
+3. Root Directory 설정 확인 (`daeheung-rt-one-web`)
 
 ---
 

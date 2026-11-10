@@ -19,14 +19,14 @@ MVS 프로젝트를 Railway 플랫폼에 배포하는 방법을 설명합니다.
 ### 1.2 프로젝트 생성
 1. "Deploy from GitHub repo" 선택
 2. MVS 저장소 선택
-3. 프로젝트 이름: `mvs-3.0`
+3. 프로젝트 이름: `daeheung-rt-one`
 
 ## 2. 백엔드 배포
 
 ### 2.1 백엔드 서비스 생성
 1. Railway 대시보드에서 "New Service" 클릭
 2. "GitHub Repo" 선택
-3. 저장소 선택 후 **Root Directory**를 `msv-server`로 설정
+3. 저장소 선택 후 **Root Directory**를 `daeheung-rt-one-api`로 설정
 4. 서비스 이름: `mvs-backend`
 
 ### 2.2 데이터베이스 연결
@@ -80,7 +80,7 @@ SMTP_PASS=your-smtp-password
 ### 3.1 프론트엔드 서비스 생성
 1. Railway 대시보드에서 "New Service" 클릭
 2. "GitHub Repo" 선택
-3. 저장소 선택 후 **Root Directory**를 `msv-frontend`로 설정
+3. 저장소 선택 후 **Root Directory**를 `daeheung-rt-one-web`로 설정
 4. 서비스 이름: `mvs-frontend`
 
 ### 3.2 환경변수 설정

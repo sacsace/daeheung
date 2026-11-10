@@ -35,7 +35,7 @@ React는 다음 파일들을 **자동으로** 로드합니다:
 
 **2단계: 서버 재시작**
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 
@@ -48,7 +48,7 @@ npm start
 
 **확인:**
 ```powershell
-cd msv-frontend
+cd daeheung-rt-one-web
 # 파일 이름 확인
 Get-ChildItem .env*
 
@@ -109,7 +109,7 @@ REACT_APP_API_URL: (not set)
 ```bash
 # 터미널에서 Ctrl+C로 서버 중지
 # 그 다음
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 

@@ -21,9 +21,9 @@ MVS의 확인·입력·알림 팝업은 **브라우저 기본창이 아니라** 
 | 확인 / 삭제 / 위험 작업 | `useConfirmDialog` + `components/Common/ConfirmDialog` |
 | 짧은 문자 입력 | `usePromptDialog` + `components/Common/PromptDialog` |
 | 에러 / 경고 / 성공 알림 | `showErrorPopup` / `showWarningPopup` / `showSuccessPopup` (`utils/errorHandler`) |
-| 업무 폼·상세 편집 모달 | 기존 `mvsDialogShell` 토큰 (`getMvsDialogPaperSx` 등) + Body 버튼 sx |
+| 업무 폼·상세 편집 모달 | 기존 `daeheungDialogShell` 토큰 (`getMvsDialogPaperSx` 등) + Body 버튼 sx |
 
-스타일 토큰은 **`components/Common/mvsDialogShell.ts`에서만** 조정한다.  
+스타일 토큰은 **`components/Common/daeheungDialogShell.ts`에서만** 조정한다.  
 확인창 레이아웃·색·버튼은 `ConfirmDialog`가 이미 이 토큰을 쓴다.
 
 ## 확인 다이얼로그 패턴

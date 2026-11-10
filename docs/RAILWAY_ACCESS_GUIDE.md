@@ -6,7 +6,7 @@
 
 #### 프론트엔드 URL 확인
 1. Railway 대시보드 접속: https://railway.app
-2. **mvs-3.0** 프로젝트 선택
+2. **daeheung-rt-one** 프로젝트 선택
 3. **mvs-frontend** 서비스 클릭
 4. **Settings** 탭 클릭
 5. **"Generate Domain"** 버튼 클릭 (도메인이 없다면)

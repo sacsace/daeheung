@@ -19,7 +19,7 @@ function Get-EnvValueFromFile {
 }
 
 function Get-LocalDbConfig {
-  $envDev = Join-Path $PSScriptRoot "..\msv-server\env.development"
+  $envDev = Join-Path $PSScriptRoot "..\daeheung-rt-one-api\env.development"
   $rootEnv = Join-Path $PSScriptRoot "..\.env"
 
   $dbHost = Get-EnvValueFromFile $envDev "DB_HOST"
@@ -77,7 +77,7 @@ if (!$pgBin) {
 $local = Get-LocalDbConfig
 $dumpDir = Join-Path $PSScriptRoot "..\backup"
 if (!(Test-Path $dumpDir)) { New-Item -ItemType Directory -Path $dumpDir | Out-Null }
-$dumpFile = if ($DumpPath) { $DumpPath } else { Join-Path $dumpDir "mvs.dump" }
+$dumpFile = if ($DumpPath) { $DumpPath } else { Join-Path $dumpDir "daeheung-rt-one.dump" }
 
 Write-Host "=== 로컬 DB 덤프 생성 ==="
 $passwords = @()

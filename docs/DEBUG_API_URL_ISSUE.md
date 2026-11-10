@@ -72,7 +72,7 @@ REACT_APP_API_URL: (not set)  // ❌ 문제
 
 **2단계: 캐시 정리 (선택사항)**
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 # node_modules/.cache 삭제 (선택사항)
 Remove-Item -Recurse -Force node_modules/.cache -ErrorAction SilentlyContinue
 ```
@@ -88,7 +88,7 @@ npm start
 
 **확인:**
 ```powershell
-cd msv-frontend
+cd daeheung-rt-one-web
 Get-Content .env.development | Select-String "REACT_APP_API_URL"
 ```
 
@@ -142,7 +142,7 @@ console.log('REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
 **백엔드가 실행 중인지 확인:**
 ```bash
 # 다른 터미널에서
-cd msv-server
+cd daeheung-rt-one-api
 npm run dev
 ```
 

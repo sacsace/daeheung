@@ -1,6 +1,6 @@
 # Railway Postgres volume fix + DB connection check
 # Before run: railway login
-#             cd msv-server
+#             cd daeheung-rt-one-api
 #             railway link -p d8a07574-bfb8-4edd-8a34-80bf46beee1d -s mvs-backend
 
 param(
@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
-$serverDir = Join-Path $root "msv-server"
+$serverDir = Join-Path $root "daeheung-rt-one-api"
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 

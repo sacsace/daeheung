@@ -13,17 +13,17 @@
 
 ### 현재 설정 확인
 
-**프론트엔드 포트 설정 (`msv-frontend/package.json`):**
+**프론트엔드 포트 설정 (`daeheung-rt-one-web/package.json`):**
 ```json
 "start": "set PORT=3000 && react-scripts start"
 ```
 
-**환경 변수 설정 (`msv-frontend/env.development`):**
+**환경 변수 설정 (`daeheung-rt-one-web/env.development`):**
 ```bash
 REACT_APP_API_URL=http://localhost:5000/api
 ```
 
-**API URL 로직 (`msv-frontend/src/services/api.ts`):**
+**API URL 로직 (`daeheung-rt-one-web/src/services/api.ts`):**
 - localhost인 경우: `http://localhost:5000/api` ✅
 
 ---
@@ -42,7 +42,7 @@ REACT_APP_API_URL=http://localhost:5000/api
    ```
    Compiled successfully!
    
-   You can now view msv-frontend in the browser.
+   You can now view daeheung-rt-one-web in the browser.
    
      Local:            http://localhost:3001
      On Your Network:  http://192.168.0.109:3001
@@ -99,13 +99,13 @@ REACT_APP_API_URL=http://localhost:5000/api
 ### 방법 1: 환경 변수 파일 이름 변경 (권장)
 
 **현재:**
-- `msv-frontend/env.development` ❌ (React가 인식하지 못함)
+- `daeheung-rt-one-web/env.development` ❌ (React가 인식하지 못함)
 
 **변경:**
-- `msv-frontend/.env.development` ✅ (React가 자동 로드)
+- `daeheung-rt-one-web/.env.development` ✅ (React가 자동 로드)
 
 **단계:**
-1. `msv-frontend/env.development` 파일을 `.env.development`로 이름 변경
+1. `daeheung-rt-one-web/env.development` 파일을 `.env.development`로 이름 변경
 2. 프론트엔드 서버 재시작
 3. 브라우저에서 확인
 
@@ -114,7 +114,7 @@ REACT_APP_API_URL=http://localhost:5000/api
 ### 방법 2: .env 파일 생성
 
 **단계:**
-1. `msv-frontend/.env` 파일 생성
+1. `daeheung-rt-one-web/.env` 파일 생성
 2. 다음 내용 추가:
    ```bash
    REACT_APP_API_URL=http://localhost:5000/api
@@ -129,7 +129,7 @@ REACT_APP_API_URL=http://localhost:5000/api
 **단계:**
 1. 백엔드 서버가 실행 중인지 확인
    ```bash
-   cd msv-server
+   cd daeheung-rt-one-api
    npm run dev
    ```
 
@@ -148,7 +148,7 @@ REACT_APP_API_URL=http://localhost:5000/api
 
 **터미널에서:**
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 
@@ -185,7 +185,7 @@ REACT_APP_API_URL: (not set)  // ❌ 문제
 ## 📋 체크리스트
 
 ### 환경 변수 설정
-- [ ] `msv-frontend/.env.development` 파일 존재 확인
+- [ ] `daeheung-rt-one-web/.env.development` 파일 존재 확인
 - [ ] `REACT_APP_API_URL=http://localhost:5000/api` 설정 확인
 - [ ] 프론트엔드 서버 재시작
 
@@ -206,7 +206,7 @@ REACT_APP_API_URL: (not set)  // ❌ 문제
 ### 1단계: 환경 변수 파일 이름 변경
 
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 # Windows PowerShell
 Rename-Item env.development .env.development
 

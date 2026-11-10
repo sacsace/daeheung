@@ -1,10 +1,10 @@
 # 개발서버에서 추출한 menus-dev-export.json 을 Railway 운영 DB에 반영
-# 사전: git push 로 msv-server/data/menus-dev-export.json 이 배포되어 있어야 함
+# 사전: git push 로 daeheung-rt-one-api/data/menus-dev-export.json 이 배포되어 있어야 함
 
 param(
   [string]$BackendUrl = "https://mvs-backend-production.up.railway.app",
   [string]$BootstrapKey = "mvs-super-secret-jwt-key-2025-prod!!",
-  [string]$JsonFile = (Join-Path $PSScriptRoot "..\msv-server\data\menus-dev-export.json")
+  [string]$JsonFile = (Join-Path $PSScriptRoot "..\daeheung-rt-one-api\data\menus-dev-export.json")
 )
 
 $ErrorActionPreference = "Stop"

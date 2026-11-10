@@ -8,19 +8,19 @@
 
 ## 🔧 수정된 파일
 
-### 1. `msv-server/env.development`
+### 1. `daeheung-rt-one-api/env.development`
 ```diff
 - CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
 + CORS_ORIGIN=http://localhost:3000
 ```
 
-### 2. `msv-server/src/index.ts`
+### 2. `daeheung-rt-one-api/src/index.ts`
 ```diff
 - return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
 + return ['http://localhost:3000'];
 ```
 
-### 3. `msv-server/src/config/constants.ts`
+### 3. `daeheung-rt-one-api/src/config/constants.ts`
 ```diff
 - DEFAULT_CORS_ORIGIN: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
 + DEFAULT_CORS_ORIGIN: ['http://localhost:3000'],
@@ -62,13 +62,13 @@ taskkill /PID <PID번호> /F
 
 **3. 프론트엔드 재시작:**
 ```bash
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 
 **4. 백엔드 재시작 (CORS 설정 적용):**
 ```bash
-cd msv-server
+cd daeheung-rt-one-api
 npm run dev
 ```
 
@@ -93,7 +93,7 @@ npm run dev
 ## 💡 참고
 
 **프론트엔드 포트 설정:**
-- `msv-frontend/package.json`의 `start` 스크립트: `set PORT=3000 && react-scripts start`
+- `daeheung-rt-one-web/package.json`의 `start` 스크립트: `set PORT=3000 && react-scripts start`
 - 이 설정으로 프론트엔드는 항상 3000 포트에서 실행됩니다
 
 **3000 포트가 사용 중인 경우:**

@@ -8,8 +8,8 @@
 - **DEV_GUIDE.md** - 개발 가이드
 - **QUICK_START.md** - 빠른 시작 가이드
 - **SIMPLIFICATION_GUIDE.md** - 단순화 가이드
-- **MVS_3.0_개발_프롬프트.md** - 개발 프롬프트
-- **MVS_3.0_초기데이터입력_프롬프트.md** - 초기 데이터 입력 프롬프트
+- **Daeheung_RT_One_개발_프롬프트.md** - 개발 프롬프트
+- **Daeheung_RT_One_초기데이터입력_프롬프트.md** - 초기 데이터 입력 프롬프트
 
 ### 데이터베이스 문서
 - **database-schema.md** - 데이터베이스 스키마

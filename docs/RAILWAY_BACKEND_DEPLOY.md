@@ -4,15 +4,15 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Root Directory** (Railway 서비스 설정) | `msv-server` |
-| **빌더** | Nixpacks (`msv-server/nixpacks.toml`) |
+| **Root Directory** (Railway 서비스 설정) | `daeheung-rt-one-api` |
+| **빌더** | Nixpacks (`daeheung-rt-one-api/nixpacks.toml`) |
 | **설치** | `npm ci` |
 | **빌드** | `npm run build` → `src` → `dist` 복사 |
 | **시작** | `npm run start:railway` (= `build` + `run-migrations.cjs` + `node dist/index.js`) |
-| **헬스체크** | `GET /health` (`msv-server/railway.toml`, `railway.json`) |
+| **헬스체크** | `GET /health` (`daeheung-rt-one-api/railway.toml`, `railway.json`) |
 | **포트** | Railway가 주입하는 `PORT` 사용 (`HOST=0.0.0.0`) |
 
-루트 `railway.toml`은 모노레포 안내용이며, **실제 배포는 `msv-server`를 루트로 지정한 서비스**에서 수행합니다.
+루트 `railway.toml`은 모노레포 안내용이며, **실제 배포는 `daeheung-rt-one-api`를 루트로 지정한 서비스**에서 수행합니다.
 
 ## 필수 환경 변수 (Variables)
 
@@ -51,7 +51,7 @@ git push origin main
 2. 백엔드 디렉터리에서 프로젝트·서비스 연결:
 
    ```powershell
-   cd msv-server
+   cd daeheung-rt-one-api
    railway link
    ```
 
@@ -76,7 +76,7 @@ git push origin main
 `start:railway`가 기동 시 `scripts/run-migrations.cjs`를 실행합니다. 수동 실행은:
 
 ```powershell
-cd msv-server
+cd daeheung-rt-one-api
 $env:DATABASE_URL = "..."   # Railway Variables 값
 npm run db:migrate:railway
 ```

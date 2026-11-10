@@ -4,13 +4,13 @@
 
 **로그 메시지:**
 ```
-"This is a monorepo root. Please deploy msv-server or msv-frontend services separately."
+"This is a monorepo root. Please deploy daeheung-rt-one-api or daeheung-rt-one-web services separately."
 ```
 
 **의미:**
 - Railway가 **루트 디렉토리**를 배포하려고 하고 있음
 - 서비스가 **Root Directory**를 제대로 지정하지 않음
-- 실제로는 **`msv-server` / `msv-frontend` 디렉토리**를 배포해야 함
+- 실제로는 **`daeheung-rt-one-api` / `daeheung-rt-one-web` 디렉토리**를 배포해야 함
 
 ---
 
@@ -21,7 +21,7 @@
 **문제:**
 - Railway 대시보드에서 서비스의 **Root Directory**가 설정되지 않았거나
 - 루트 디렉토리(`/`)로 설정되어 있음
-- 실제로는 `msv-server` 또는 `msv-frontend`로 설정되어야 함
+- 실제로는 `daeheung-rt-one-api` 또는 `daeheung-rt-one-web`로 설정되어야 함
 
 **루트 `railway.toml` 파일:**
 - 루트 디렉토리에 `railway.toml` 파일이 있음
@@ -39,12 +39,12 @@
 3. **Settings** 탭 클릭
 4. **"Root Directory"** 또는 **"Source"** 섹션 찾기
 5. 루트 디렉토리를 다음 중 하나로 설정
-   - 백엔드: `msv-server`
-   - 프론트엔드: `msv-frontend`
+   - 백엔드: `daeheung-rt-one-api`
+   - 프론트엔드: `daeheung-rt-one-web`
 
 **확인:**
 - 서비스가 해당 디렉토리에서 배포되는지 확인
-- 배포 로그에서 `msv-server` 또는 `msv-frontend` 경로 확인
+- 배포 로그에서 `daeheung-rt-one-api` 또는 `daeheung-rt-one-web` 경로 확인
 
 ---
 
@@ -65,10 +65,10 @@
 ### 서비스별 루트 디렉토리 확인
 
 **mvs-backend:**
-- Root Directory: `msv-server`
+- Root Directory: `daeheung-rt-one-api`
 
 **mvs-frontend:**
-- Root Directory: `msv-frontend` ← **이것이 설정되어야 함!**
+- Root Directory: `daeheung-rt-one-web` ← **이것이 설정되어야 함!**
 
 **Postgres:**
 - Root Directory: 설정 불필요 (Railway 관리 서비스)
@@ -82,7 +82,7 @@
 1. **mvs-backend** 또는 **mvs-frontend** 서비스 선택
 2. **Settings** 탭 클릭
 3. **"Source"** 또는 **"Root Directory"** 섹션 찾기
-4. 값 입력: `msv-server` 또는 `msv-frontend`
+4. 값 입력: `daeheung-rt-one-api` 또는 `daeheung-rt-one-web`
 5. **Save** 클릭
 
 ### 2. 재배포
@@ -93,7 +93,7 @@
 ### 3. 로그 확인
 
 - 배포 로그에서 다음을 확인:
-  - `msv-frontend` 디렉토리에서 빌드가 시작되는지
+  - `daeheung-rt-one-web` 디렉토리에서 빌드가 시작되는지
   - 루트 디렉토리 메시지가 사라졌는지
   - 정상적인 빌드 로그가 나오는지
 
@@ -104,7 +104,7 @@
 ### 수정 전 (현재)
 ```
 Starting Container
-Monorepo root detected. Set Root Directory to msv-server or msv-frontend in Railway service settings.
+Monorepo root detected. Set Root Directory to daeheung-rt-one-api or daeheung-rt-one-web in Railway service settings.
 Crashed
 ```
 
@@ -130,14 +130,14 @@ Serving!
 2. **"GitHub Repo"** 선택
 3. 저장소 선택 후
 4. **"Root Directory"** 또는 **"Source Path"** 설정
-5. 백엔드면 `msv-server`, 프론트엔드면 `msv-frontend` 입력
+5. 백엔드면 `daeheung-rt-one-api`, 프론트엔드면 `daeheung-rt-one-web` 입력
 
 ### 기존 서비스 수정
 
 기존 서비스의 루트 디렉토리를 변경하려면:
 1. 서비스 → Settings
 2. Source 또는 Root Directory 섹션
-3. 값 변경: `msv-server` 또는 `msv-frontend`
+3. 값 변경: `daeheung-rt-one-api` 또는 `daeheung-rt-one-web`
 4. Save
 
 ---
@@ -158,7 +158,7 @@ Serving!
 - [ ] mvs-backend 또는 mvs-frontend 서비스 선택
 - [ ] Settings 탭 확인
 - [ ] Root Directory 또는 Source Path 확인
-- [ ] `msv-server` 또는 `msv-frontend`로 설정
+- [ ] `daeheung-rt-one-api` 또는 `daeheung-rt-one-web`로 설정
 - [ ] Save 클릭
 
 ### 재배포
@@ -177,7 +177,7 @@ Serving!
 
 **해결:**
 - Railway 대시보드 → 서비스 → Settings
-- Root Directory를 `msv-server` 또는 `msv-frontend`로 설정
+- Root Directory를 `daeheung-rt-one-api` 또는 `daeheung-rt-one-web`로 설정
 - 재배포
 
 **결과:**

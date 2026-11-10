@@ -14,13 +14,13 @@
 ## 🚀 Railway 배포 준비
 
 ### 1. 백엔드 배포 준비
-- [ ] `msv-server/env.railway` 환경변수 검토
+- [ ] `daeheung-rt-one-api/env.railway` 환경변수 검토
 - [ ] 데이터베이스 연결 설정 확인
 - [ ] JWT 시크릿 키 설정
 - [ ] CORS 도메인 설정
 
 ### 2. 프론트엔드 배포 준비  
-- [ ] `msv-frontend/env.railway` 환경변수 검토
+- [ ] `daeheung-rt-one-web/env.railway` 환경변수 검토
 - [ ] API URL을 Railway 백엔드 URL로 변경
 - [ ] 빌드 스크립트 확인
 - [ ] 정적 파일 서빙 설정

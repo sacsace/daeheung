@@ -37,7 +37,7 @@
 
 ### 방법 1: start:railway 스크립트 수정 (권장)
 
-`msv-frontend/package.json`:
+`daeheung-rt-one-web/package.json`:
 
 ```json
 {
@@ -59,7 +59,7 @@
 
 ### 방법 2: nixpacks.toml 수정
 
-`msv-frontend/nixpacks.toml`:
+`daeheung-rt-one-web/nixpacks.toml`:
 
 ```toml
 [start]

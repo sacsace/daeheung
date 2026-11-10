@@ -10,35 +10,35 @@
 ### 1. 디자인 톤앤매너 통일 및 폰트 사이즈 조정
 
 #### 수정된 파일들:
-- `msv-frontend/src/pages/Auth/Login.tsx`
+- `daeheung-rt-one-web/src/pages/Auth/Login.tsx`
   - Welcome 제목: `1.75rem` → `1.375rem`
   - Alert 아이콘: `1.3rem` → `1.125rem`
 
-- `msv-frontend/src/pages/Company/CompanyManagement.tsx`
+- `daeheung-rt-one-web/src/pages/Company/CompanyManagement.tsx`
   - PhotoCameraIcon: `32px` → `24px`
   - BusinessIcon: `1.5rem` → `1.25rem`
   - Avatar: `60x60, 1.5rem` → `56x56, 1.25rem`
   - 빈 상태 아이콘: `48px` → `40px`
 
-- `msv-frontend/src/pages/Inventory/InventoryReport.tsx`
+- `daeheung-rt-one-web/src/pages/Inventory/InventoryReport.tsx`
   - 모든 통계 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/System/SecurityManagement.tsx`
+- `daeheung-rt-one-web/src/pages/System/SecurityManagement.tsx`
   - 모든 보안 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/System/LogManagement.tsx`
+- `daeheung-rt-one-web/src/pages/System/LogManagement.tsx`
   - 모든 로그 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/Accounting/AssetManagement.tsx`
+- `daeheung-rt-one-web/src/pages/Accounting/AssetManagement.tsx`
   - 모든 자산 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/Accounting/AccountingStatistics.tsx`
+- `daeheung-rt-one-web/src/pages/Accounting/AccountingStatistics.tsx`
   - 모든 회계 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/System/BackupManagement.tsx`
+- `daeheung-rt-one-web/src/pages/System/BackupManagement.tsx`
   - 모든 백업 아이콘: `2.5rem` → `2rem`
 
-- `msv-frontend/src/pages/System/SystemSettings.tsx`
+- `daeheung-rt-one-web/src/pages/System/SystemSettings.tsx`
   - CloudUploadIcon: `48px` → `40px`
   - StorageIcon: `48px` → `40px`
 
@@ -53,7 +53,7 @@
 ### 2. API 호출 관련 확인
 
 #### 확인된 사항:
-- ✅ API 서비스 파일 (`msv-frontend/src/services/api.ts`) 구조 정상
+- ✅ API 서비스 파일 (`daeheung-rt-one-web/src/services/api.ts`) 구조 정상
 - ✅ Axios 인터셉터 정상 작동
 - ✅ 인증 토큰 처리 로직 정상
 - ✅ 에러 핸들링 구현됨
@@ -101,13 +101,13 @@
 
 1. **백엔드 서버 실행**
    ```powershell
-   cd msv-server
+   cd daeheung-rt-one-api
    npm run dev
    ```
 
 2. **프론트엔드 서버 실행**
    ```powershell
-   cd msv-frontend
+   cd daeheung-rt-one-web
    npm start
    ```
 

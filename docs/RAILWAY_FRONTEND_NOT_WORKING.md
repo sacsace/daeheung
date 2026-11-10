@@ -57,7 +57,7 @@ Serving!
 **문제가 있는 경우:**
 ```
 [start]
-This is a monorepo root. Please deploy msv-server or msv-frontend services separately.
+This is a monorepo root. Please deploy daeheung-rt-one-api or daeheung-rt-one-web services separately.
 또는
 Error: ENOENT: no such file or directory, open 'build/index.html'
 또는
@@ -74,8 +74,8 @@ Deploy crashed
 1. **mvs-frontend** 서비스 선택
 2. **Settings** 탭 클릭
 3. **"Root Directory"** 또는 **"Source"** 섹션 확인
-4. 값이 **`msv-frontend`**로 설정되어 있는지 확인
-5. 설정되어 있지 않다면 **`msv-frontend`**로 설정
+4. 값이 **`daeheung-rt-one-web`**로 설정되어 있는지 확인
+5. 설정되어 있지 않다면 **`daeheung-rt-one-web`**로 설정
 6. **Save** 클릭
 
 ### 2단계: 재배포
@@ -86,7 +86,7 @@ Deploy crashed
 ### 3단계: 배포 로그 확인
 
 - 배포 로그에서 다음 확인:
-  - `msv-frontend` 디렉토리에서 빌드가 시작되는지
+  - `daeheung-rt-one-web` 디렉토리에서 빌드가 시작되는지
   - 빌드가 성공했는지
   - 시작 명령이 올바른지
   - "Serving!" 메시지가 나오는지
@@ -116,7 +116,7 @@ Deploy crashed
 ### Railway 대시보드 확인
 - [ ] mvs-frontend 서비스 상태 확인
 - [ ] Settings → Root Directory 확인
-- [ ] Root Directory가 `msv-frontend`로 설정되어 있는지 확인
+- [ ] Root Directory가 `daeheung-rt-one-web`로 설정되어 있는지 확인
 
 ### 배포 로그 확인
 - [ ] Deployments → 최신 배포 → Deploy Logs
@@ -183,7 +183,7 @@ Deploy crashed
 
 **다음 단계:**
 1. Railway 대시보드에서 Root Directory 설정 확인
-2. `msv-frontend`로 설정되어 있는지 확인
+2. `daeheung-rt-one-web`로 설정되어 있는지 확인
 3. 재배포
 4. 배포 로그 확인
 5. 브라우저에서 다시 접속 확인

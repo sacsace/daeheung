@@ -2,7 +2,7 @@
 
 ## 🔍 현재 환경 설정 상태
 
-### 프론트엔드 API URL 설정 (`msv-frontend/src/services/api.ts`)
+### 프론트엔드 API URL 설정 (`daeheung-rt-one-web/src/services/api.ts`)
 
 **코드 로직:**
 1. **환경 변수 우선** (`REACT_APP_API_URL`)
@@ -32,23 +32,23 @@ const apiUrl = `${protocol}//${hostname}${apiPort}/api`;
 
 ## 📊 환경 변수 파일 확인
 
-### 프론트엔드 (`msv-frontend/env.development`)
+### 프론트엔드 (`daeheung-rt-one-web/env.development`)
 ```bash
 REACT_APP_API_URL=http://localhost:5000/api
 ```
 
-### 프론트엔드 (`msv-frontend/env.railway`)
+### 프론트엔드 (`daeheung-rt-one-web/env.railway`)
 ```bash
 REACT_APP_API_URL=https://api.mvsystem.in/api
 ```
 
-### 백엔드 (`msv-server/env.development`)
+### 백엔드 (`daeheung-rt-one-api/env.development`)
 ```bash
 PORT=5000
 CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
 ```
 
-### 백엔드 (`msv-server/env.railway`)
+### 백엔드 (`daeheung-rt-one-api/env.railway`)
 ```bash
 PORT=$PORT  # Railway가 자동 설정
 CORS_ORIGIN=https://www.mvsystem.in

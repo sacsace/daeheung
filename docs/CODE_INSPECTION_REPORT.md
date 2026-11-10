@@ -30,7 +30,7 @@
 #### ⚠️ 개선 필요 사항
 
 **1. 모듈 시스템 일관성 문제**
-- **위치**: `msv-server/src/index.ts`
+- **위치**: `daeheung-rt-one-api/src/index.ts`
 - **문제**: ES6 `import`와 CommonJS `require()` 혼용
 - **영향**: 코드 일관성 저하, 트리 쉐이킹 불가능
 - **발견된 위치**:
@@ -43,12 +43,12 @@
   ```
 
 **2. 사용하지 않는 Import**
-- **위치**: `msv-server/src/index.ts` (Line 24-26)
+- **위치**: `daeheung-rt-one-api/src/index.ts` (Line 24-26)
 - **문제**: `createHttpsServer`, `fs`, `path` import되었으나 사용되지 않음
 - **해결**: Railway에서 SSL을 자동 처리하므로 HTTP만 사용
 
 **3. JWT 시크릿 기본값 보안 문제**
-- **위치**: `msv-server/src/middleware/auth.ts` (Line 18)
+- **위치**: `daeheung-rt-one-api/src/middleware/auth.ts` (Line 18)
 - **문제**: 
   ```typescript
   process.env.JWT_SECRET || 'mvs-secret-key'
@@ -57,7 +57,7 @@
 - **권장**: 환경 변수 검증 강화 (이미 `env.ts`에 구현되어 있으나 미사용)
 
 **4. TypeScript 설정 완화**
-- **위치**: `msv-server/tsconfig.json`
+- **위치**: `daeheung-rt-one-api/tsconfig.json`
 - **문제**: `strict: false`, `noImplicitAny: false` 등 엄격한 타입 체크 비활성화
 - **영향**: 타입 안정성 저하, 런타임 오류 가능성 증가
 
@@ -73,7 +73,7 @@
 #### ⚠️ 개선 필요 사항
 
 **1. 테스트 의존성 문제**
-- **위치**: `msv-frontend/src/App.test.tsx`
+- **위치**: `daeheung-rt-one-web/src/App.test.tsx`
 - **문제**: `react-router-dom` 모듈을 찾을 수 없음
 - **원인**: 테스트 환경 설정 문제 또는 의존성 설치 누락 가능성
 - **해결 필요**: 
@@ -81,7 +81,7 @@
   - Jest 설정에서 모듈 해석 확인
 
 **2. 테스트 파일 내용**
-- **위치**: `msv-frontend/src/App.test.tsx`
+- **위치**: `daeheung-rt-one-web/src/App.test.tsx`
 - **문제**: 기본 Create React App 템플릿 테스트 (실제 기능 테스트 없음)
 - **권장**: 실제 컴포넌트 동작 테스트로 교체 필요
 
@@ -103,7 +103,7 @@
 
 ## 🧪 테스트 결과 상세
 
-### 백엔드 테스트 (`msv-server`)
+### 백엔드 테스트 (`daeheung-rt-one-api`)
 
 **테스트 스위트**: 2개 통과
 - `src/__tests__/setup.ts` ✅
@@ -119,7 +119,7 @@
 
 **실행 시간**: 1.81초
 
-### 프론트엔드 테스트 (`msv-frontend`)
+### 프론트엔드 테스트 (`daeheung-rt-one-web`)
 
 **테스트 스위트**: 1개 실패
 - `src/App.test.tsx` ❌

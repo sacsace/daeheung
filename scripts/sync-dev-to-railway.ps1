@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
-$serverDir = Join-Path $root "msv-server"
+$serverDir = Join-Path $root "daeheung-rt-one-api"
 
 function Invoke-Bootstrap {
   param([hashtable]$ExtraHeaders, [string]$Label)

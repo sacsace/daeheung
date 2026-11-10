@@ -51,15 +51,15 @@ $scriptDir = if (-not [string]::IsNullOrWhiteSpace($PSScriptRoot)) {
     $null
 }
 $rootPath = if ($scriptDir) { Split-Path -Parent $scriptDir } else { $null }
-if (-not $rootPath -or -not (Test-Path -LiteralPath (Join-Path $rootPath "msv-server"))) {
+if (-not $rootPath -or -not (Test-Path -LiteralPath (Join-Path $rootPath "daeheung-rt-one-api"))) {
     $cwd = (Get-Location -ErrorAction SilentlyContinue).Path
-    if ($cwd -and (Test-Path -LiteralPath (Join-Path $cwd "msv-server"))) {
+    if ($cwd -and (Test-Path -LiteralPath (Join-Path $cwd "daeheung-rt-one-api"))) {
         $rootPath = $cwd
     }
 }
-$msvServerAtRoot = if ($rootPath) { Join-Path $rootPath "msv-server" } else { $null }
+$msvServerAtRoot = if ($rootPath) { Join-Path $rootPath "daeheung-rt-one-api" } else { $null }
 if (-not $rootPath -or -not (Test-Path -LiteralPath $msvServerAtRoot)) {
-    Write-ColorOutput "Could not resolve repository root (folder containing msv-server). Script directory was empty or invalid." "Red"
+    Write-ColorOutput "Could not resolve repository root (folder containing daeheung-rt-one-api). Script directory was empty or invalid." "Red"
     Write-ColorOutput "Run this script from the file: .\server\start-server.ps1 (from repo root), or cd to the MVS repo folder first." "Yellow"
     exit 1
 }
@@ -93,14 +93,14 @@ function Stop-ProcessOnPort {
 function Test-Environment {
     Write-ColorOutput "`nChecking environment variables..." "Cyan"
 
-    $envFile = Join-Path $rootPath "msv-server\.env"
+    $envFile = Join-Path $rootPath "daeheung-rt-one-api\.env"
     $envExample = Join-Path $rootPath ".env"
 
     if (-not (Test-Path $envFile)) {
         Write-ColorOutput ".env file not found: $envFile" "Yellow"
         if (Test-Path $envExample) {
-            Write-ColorOutput "Copy the root .env to msv-server\.env:" "White"
-            Write-ColorOutput "  copy .env msv-server\.env" "Cyan"
+            Write-ColorOutput "Copy the root .env to daeheung-rt-one-api\.env:" "White"
+            Write-ColorOutput "  copy .env daeheung-rt-one-api\.env" "Cyan"
         }
         if (-not $SkipChecks) {
             Write-ColorOutput "Cannot start without environment file." "Red"
@@ -138,13 +138,13 @@ function Test-Dependencies {
         exit 1
     }
 
-    $backendModules = Join-Path $rootPath "msv-server\node_modules"
-    $frontendModules = Join-Path $rootPath "msv-frontend\node_modules"
+    $backendModules = Join-Path $rootPath "daeheung-rt-one-api\node_modules"
+    $frontendModules = Join-Path $rootPath "daeheung-rt-one-web\node_modules"
 
     if (-not $FrontendOnly) {
         if (-not (Test-Path $backendModules)) {
             Write-ColorOutput "Backend dependencies missing. Installing..." "Yellow"
-            Set-Location "$rootPath\msv-server"
+            Set-Location "$rootPath\daeheung-rt-one-api"
             npm install
             Set-Location $rootPath
         } else {
@@ -155,7 +155,7 @@ function Test-Dependencies {
     if (-not $BackendOnly) {
         if (-not (Test-Path $frontendModules)) {
             Write-ColorOutput "Frontend dependencies missing. Installing..." "Yellow"
-            Set-Location "$rootPath\msv-frontend"
+            Set-Location "$rootPath\daeheung-rt-one-web"
             npm install
             Set-Location $rootPath
         } else {
@@ -171,7 +171,7 @@ function Test-DatabaseConnection {
 function Start-BackendServer {
     Write-ColorOutput "`nStarting backend server..." "Cyan"
 
-    $backendPath = Join-Path $rootPath "msv-server"
+    $backendPath = Join-Path $rootPath "daeheung-rt-one-api"
     if (-not (Test-Path $backendPath)) {
         Write-ColorOutput "Backend directory not found: $backendPath" "Red"
         exit 1
@@ -182,15 +182,12 @@ function Start-BackendServer {
     $backendPathEscaped = $backendPath -replace "'", "''"
     $backendCmds = @(
         "Write-Host '========================================' -ForegroundColor Cyan",
-        "Write-Host '  MVS Backend Server' -ForegroundColor Cyan",
+        "Write-Host '  Daeheung R&T One API' -ForegroundColor Cyan",
         "Write-Host '========================================' -ForegroundColor Cyan",
         "Set-Location '$backendPathEscaped'",
         "Remove-Item -Path Env:DATABASE_URL -ErrorAction SilentlyContinue",
-        "Set-Item -Path Env:DB_HOST -Value 'localhost'",
-        "Set-Item -Path Env:DB_PORT -Value 5432",
-        "Set-Item -Path Env:DB_NAME -Value 'mvs'",
-        "Set-Item -Path Env:DB_USER -Value 'mvs_user'",
-        "Set-Item -Path Env:DB_PASSWORD -Value 'Korean@2026'",
+        "Get-Content -Path '.env' | ForEach-Object { if ($_ -match '^(DB_HOST|DB_PORT|DB_NAME|DB_USER|DB_PASSWORD|PORT)=(.*)$') { Set-Item -Path ('Env:' + $matches[1]) -Value $matches[2] } }",
+        "if ($env:DB_NAME -eq 'mvs' -or $env:DB_USER -eq 'mvs_user') { Write-Host 'Refusing to start against the MSV database.' -ForegroundColor Red; exit 1 }",
         "npm run dev"
     )
     $command = $backendCmds -join "; "
@@ -202,7 +199,7 @@ function Start-BackendServer {
 function Start-FrontendServer {
     Write-ColorOutput "`nStarting frontend server..." "Cyan"
 
-    $frontendPath = Join-Path $rootPath "msv-frontend"
+    $frontendPath = Join-Path $rootPath "daeheung-rt-one-web"
     if (-not (Test-Path $frontendPath)) {
         Write-ColorOutput "Frontend directory not found: $frontendPath" "Red"
         exit 1

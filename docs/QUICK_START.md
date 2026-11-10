@@ -29,8 +29,8 @@ MVS/
 ├── .env              # 모든 개발 설정 (하나로 통합!)
 ├── dev.ps1           # 원클릭 개발 서버 시작
 ├── package.json      # 간단한 명령어들
-├── msv-server/       # 백엔드
-└── msv-frontend/     # 프론트엔드
+├── daeheung-rt-one-api/       # 백엔드
+└── daeheung-rt-one-web/     # 프론트엔드
 ```
 
 **복잡한 설정 파일들은 제거되었습니다!**
@@ -101,8 +101,8 @@ JWT_SECRET=mvs-dev-secret-key-minimum-32-characters-long
    ```
 
 2. **코드 작성**
-   - 백엔드: `msv-server/src/` 수정 → 자동 재시작
-   - 프론트엔드: `msv-frontend/src/` 수정 → 자동 새로고침
+   - 백엔드: `daeheung-rt-one-api/src/` 수정 → 자동 재시작
+   - 프론트엔드: `daeheung-rt-one-web/src/` 수정 → 자동 새로고침
 
 3. **테스트**
    ```powershell

@@ -198,7 +198,7 @@ Error: listen EADDRINUSE: address already in use :::3000
 ### 방법 2: 빌드 확인
 - 로컬에서 빌드 테스트:
   ```bash
-  cd msv-frontend
+  cd daeheung-rt-one-web
   npm run build
   ```
 - `build` 폴더가 생성되는지 확인
@@ -206,7 +206,7 @@ Error: listen EADDRINUSE: address already in use :::3000
 ### 방법 3: 시작 명령 테스트
 - 로컬에서 시작 명령 테스트:
   ```bash
-  cd msv-frontend
+  cd daeheung-rt-one-web
   npm run build
   npm run start:railway
   ```

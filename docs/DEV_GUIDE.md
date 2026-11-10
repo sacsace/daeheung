@@ -16,8 +16,8 @@ npm run dev
 MVS/
 ├── .env                 # 모든 개발 설정 (하나로 통합)
 ├── dev.ps1             # 원클릭 개발 서버 시작
-├── msv-server/         # 백엔드
-└── msv-frontend/       # 프론트엔드
+├── daeheung-rt-one-api/         # 백엔드
+└── daeheung-rt-one-web/       # 프론트엔드
 ```
 
 ## ⚡ 핵심 명령어

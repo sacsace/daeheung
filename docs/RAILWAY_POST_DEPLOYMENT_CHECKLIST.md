@@ -45,7 +45,7 @@ Postgres 서비스가 완료되면 마이그레이션을 실행하세요:
 railway run --service mvs-backend npm run db:migrate
 
 # 또는 Railway 대시보드에서 터미널 접속 후
-cd msv-server
+cd daeheung-rt-one-api
 npm run db:migrate
 ```
 

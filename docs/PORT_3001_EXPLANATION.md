@@ -5,9 +5,9 @@
 ### 1. CORS 설정에서 사용 (백엔드)
 
 **위치:**
-- `msv-server/env.development`
-- `msv-server/src/index.ts`
-- `msv-server/src/config/constants.ts`
+- `daeheung-rt-one-api/env.development`
+- `daeheung-rt-one-api/src/index.ts`
+- `daeheung-rt-one-api/src/config/constants.ts`
 
 **설정:**
 ```typescript
@@ -37,7 +37,7 @@ npm start
 # React가 자동으로 3001 포트 사용
 Compiled successfully!
 
-You can now view msv-frontend in the browser.
+You can now view daeheung-rt-one-web in the browser.
 
   Local:            http://localhost:3001
   On Your Network:  http://192.168.0.109:3001
@@ -108,13 +108,13 @@ return ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002
 ### 방법 1: 환경 변수 파일 확인
 
 **확인:**
-- `msv-frontend/.env.development` 파일이 있는지
+- `daeheung-rt-one-web/.env.development` 파일이 있는지
 - `REACT_APP_API_URL=http://localhost:5000/api` 설정이 있는지
 
 **재시작:**
 ```bash
 # 프론트엔드 서버 재시작
-cd msv-frontend
+cd daeheung-rt-one-web
 npm start
 ```
 

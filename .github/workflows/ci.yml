@@ -26,32 +26,32 @@ jobs:
 
     # 백엔드 린트 및 테스트
     - name: Install backend dependencies
-      working-directory: ./msv-server
+      working-directory: ./daeheung-rt-one-api
       run: npm ci
 
     - name: Run backend linting
-      working-directory: ./msv-server
+      working-directory: ./daeheung-rt-one-api
       run: npm run lint
 
     - name: Run backend tests
-      working-directory: ./msv-server
+      working-directory: ./daeheung-rt-one-api
       run: npm test
 
     # 프론트엔드 린트 및 테스트
     - name: Install frontend dependencies
-      working-directory: ./msv-frontend
+      working-directory: ./daeheung-rt-one-web
       run: npm ci
 
     - name: Run frontend linting
-      working-directory: ./msv-frontend
+      working-directory: ./daeheung-rt-one-web
       run: npm run lint
 
     - name: Run frontend tests
-      working-directory: ./msv-frontend
+      working-directory: ./daeheung-rt-one-web
       run: npm test
 
     - name: Build frontend
-      working-directory: ./msv-frontend
+      working-directory: ./daeheung-rt-one-web
       run: npm run build
 
   # 빈 Postgres에 마이그레이션 적용 스모크 (배포 전 스키마 검증)
@@ -61,9 +61,9 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: mvs
-          POSTGRES_PASSWORD: mvs_test
-          POSTGRES_DB: mvs_migrate_smoke
+          POSTGRES_USER: daeheung_rt_one
+          POSTGRES_PASSWORD: drt_test
+          POSTGRES_DB: daeheung_rt_one_migrate_smoke
         ports:
           - 5432:5432
         options: >-
@@ -80,16 +80,16 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: msv-server/package-lock.json
+        cache-dependency-path: daeheung-rt-one-api/package-lock.json
 
     - name: Install backend dependencies
-      working-directory: ./msv-server
+      working-directory: ./daeheung-rt-one-api
       run: npm ci
 
     - name: Run DB migrations (smoke)
-      working-directory: ./msv-server
+      working-directory: ./daeheung-rt-one-api
       env:
-        DATABASE_URL: postgresql://mvs:mvs_test@localhost:5432/mvs_migrate_smoke
+        DATABASE_URL: postgresql://daeheung_rt_one:drt_test@localhost:5432/daeheung_rt_one_migrate_smoke
         NODE_ENV: test
       run: node scripts/run-migrations.cjs
 

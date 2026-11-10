@@ -12,7 +12,7 @@
 
 **터미널에서 확인:**
 ```bash
-cd msv-server
+cd daeheung-rt-one-api
 npm run dev
 ```
 
@@ -92,7 +92,7 @@ Database connection error: ...
 
 **해결:**
 1. PostgreSQL이 실행 중인지 확인
-2. 데이터베이스 설정 확인 (`msv-server/env.development`)
+2. 데이터베이스 설정 확인 (`daeheung-rt-one-api/env.development`)
 3. 데이터베이스 연결 정보 확인
 
 ---
@@ -101,7 +101,7 @@ Database connection error: ...
 
 **확인:**
 ```powershell
-cd msv-server
+cd daeheung-rt-one-api
 Get-Content env.development
 ```
 
@@ -119,7 +119,7 @@ Get-Content env.development
 ### 방법 1: 개발 모드로 시작
 
 ```bash
-cd msv-server
+cd daeheung-rt-one-api
 npm run dev
 ```
 
@@ -133,7 +133,7 @@ npm run dev
 ### 방법 2: 프로덕션 모드로 시작
 
 ```bash
-cd msv-server
+cd daeheung-rt-one-api
 npm run build
 npm start
 ```
@@ -158,12 +158,12 @@ npm start
 
 **파일 위치:**
 ```
-msv-server/server-log.txt
+daeheung-rt-one-api/server-log.txt
 ```
 
 **최근 로그 확인:**
 ```powershell
-Get-Content msv-server/server-log.txt -Tail 50
+Get-Content daeheung-rt-one-api/server-log.txt -Tail 50
 ```
 
 ---

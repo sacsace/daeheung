@@ -19,7 +19,7 @@ cmds = [
   "unset CI",
   "export CI=false",
   "export GENERATE_SOURCEMAP=false",
-  "export REACT_APP_API_URL=${REACT_APP_API_URL:-https://mvs-backend-production.up.railway.app/api}",
+  "export REACT_APP_API_URL=${REACT_APP_API_URL:-https://daeheung-production.up.railway.app/api}",
   "npm run build"
 ]
 
@@ -33,7 +33,7 @@ cmd = "node scripts/serve-production.cjs"
 NODE_ENV = "production"
 PORT = "$PORT"
 CI = "false"
-REACT_APP_API_URL = "https://api.mvsystem.in/api"
+REACT_APP_API_URL = "https://daeheung-production.up.railway.app/api"
 CANONICAL_HOST = "www.mvsystem.in"
 FORCE_HTTPS = "1"
 
